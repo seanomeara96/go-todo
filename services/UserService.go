@@ -3,6 +3,8 @@ package services
 import (
 	"go-todo/models"
 	"go-todo/repositories"
+
+	"github.com/google/uuid"
 )
 
 type UserService struct {
@@ -16,11 +18,15 @@ func NewUserService(userRepo *repositories.UserRepository) *UserService {
 }
 
 func (s *UserService) NewUser(username, email, password string) (*models.User, error) {
+	// sanitize and  clean usernalme email
+	id := uuid.New().String()
+
 	// need to remomber to hash password first
-	userToInsert := models.NewUserRecord(username, email, password)
+	userToInsert := models.NewUserRecord(id, username, email, password)
 	err := s.userRepo.Save(userToInsert)
 	if err != nil {
-		nil, err
+		return nil, err
 	}
-	user := models.NewUser(userTo)
+	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name)
+	return &user, nil
 }

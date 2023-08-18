@@ -18,7 +18,7 @@ func NewAuthService(u *repositories.UserRepository) *AuthService {
 
 func (a *AuthService) Login(email string, password string) (*models.User, error) {
 	if email == "email" && password == "password" {
-		user := models.NewUser(email, "username")
+		user := models.NewUser("id", "username", email)
 		return &user, nil
 	}
 	return nil, fmt.Errorf("something went wrong woth login creddentials")

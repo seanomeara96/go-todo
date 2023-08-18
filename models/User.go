@@ -1,30 +1,28 @@
 package models
 
-import "github.com/google/uuid"
-
 type User struct {
+	ID    string
 	Name  string
 	Email string
 }
 
-func NewUser(email string, name string) User {
+func NewUser(ID string, name string, email string) User {
 	return User{
+		ID:    ID,
 		Name:  name,
 		Email: email,
 	}
 }
 
 type UserRecord struct {
-	ID string
 	User
 	Password string
 }
 
-func NewUserRecord(name, email, password string) UserRecord {
-	id := uuid.New().String()
+func NewUserRecord(id, name, email, password string) UserRecord {
+
 	return UserRecord{
-		ID:       id,
-		User:     NewUser(email, name),
+		User:     NewUser(id, name, email),
 		Password: password,
 	}
 }

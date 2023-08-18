@@ -49,7 +49,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-
 		http.Error(w, "Incorrect credentials", http.StatusBadRequest)
 		return
 	}
