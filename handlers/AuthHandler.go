@@ -59,11 +59,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	session, _ := h.store.Get(r, "user-session")
-	err := h.store.Delete(r, w, session)
+	session, err := h.store.Get(r, "user-session")
+	if err != nil {
+		http.Error(w, "could not get session", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.store.Delete(r, w, session)
 	if err != nil {
 		http.Error(w, "could not delete session", http.StatusInternalServerError)
 		return
 	}
+
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }

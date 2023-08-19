@@ -22,9 +22,11 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
+	name := r.FormValue("username")
 	email := r.FormValue("email")
 	password := r.FormValue("password")
+
+	// TODO sanitize and clean input
 
 	_, err = h.userService.NewUser(name, email, password)
 	if err != nil {

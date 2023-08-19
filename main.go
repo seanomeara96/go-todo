@@ -23,27 +23,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS users(
-		 id TEXT PRIMARY KEY UNIQUE NOT NULL,
-		 name TEXT DEFAULT "",
-		 email TEXT DEFAULT "",
-		 password TEXT DEFAULT "")`)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS todos(
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id TEXT,
-		description TEXT DEFAULT "",
-		is_complete BOOLEAN DEFAULT FALSE,
-		FOREIGN KEY (user_id) REFERENCES users(id)
-	)`)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	store, err := sqlitestore.NewSqliteStore("./main.db", "sessions", "/", 3600, []byte("<SecretKey>"))
+	store, err := sqlitestore.NewSqliteStore(
+		"./main.db",
+		"sessions",
+		"/",
+		3600,
+		[]byte("<SecretKey>"),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,13 +49,17 @@ func main() {
 	}
 
 	todoRepo := repositories.NewTodoRepo(db)
+	err = todoRepo.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
 	userRepo := repositories.NewuserRepository(db)
 
 	todoService := services.NewTodoService(todoRepo)
 	authService := services.NewAuthService(userRepo)
 	userService := services.NewUserService(userRepo)
-	todoHandler := handlers.NewTodoHandler(todoService, store)
-	pageHandler := handlers.NewPageHandler(tmpl, store)
+	todoHandler := handlers.NewTodoHandler(todoService, tmpl, store)
+	pageHandler := handlers.NewPageHandler(userService, todoService, tmpl, store)
 	authHandler := handlers.NewAuthHandler(authService, store)
 	userHandler := handlers.NewUserHandler(userService)
 
@@ -80,7 +70,8 @@ func main() {
 	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodPost)
 	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)
-	r.HandleFunc("/todo/remove", todoHandler.Remove).Methods(http.MethodDelete)
+	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
 
+	log.Println("http://localhost:3000")
 	log.Fatal(http.ListenAndServe(":3000", r))
 }

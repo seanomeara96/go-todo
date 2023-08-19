@@ -3,6 +3,7 @@ package repositories
 import (
 	"database/sql"
 	"go-todo/models"
+	"log"
 )
 
 type UserRepository struct {
@@ -27,7 +28,7 @@ func (r *UserRepository) Save(user models.UserRecord) error {
 	return nil
 }
 
-func (r *UserRepository) GetUser(ID string) (*models.User, error) {
+func (r *UserRepository) GetUserByID(ID string) (*models.User, error) {
 	stmt, err := r.db.Prepare(`SELECT id, name, email FROM users WHERE id = ?`)
 	if err != nil {
 		return nil, err
@@ -40,4 +41,29 @@ func (r *UserRepository) GetUser(ID string) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *UserRepository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {
+	stmt, err := r.db.Prepare(`SELECT id, name, email, password FROM users WHERE email = ?`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	userRecord := models.UserRecord{}
+	err = stmt.QueryRow(email).Scan(&userRecord.ID, &userRecord.Name, &userRecord.Email, &userRecord.Password)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return &userRecord, nil
+}
+
+func (r *UserRepository) Init() error {
+	_, err := r.db.Exec(`CREATE TABLE IF NOT EXISTS users(
+		id TEXT PRIMARY KEY UNIQUE NOT NULL,
+		name TEXT DEFAULT "",
+		email TEXT DEFAULT "",
+		password TEXT DEFAULT "")`)
+	return err
 }
