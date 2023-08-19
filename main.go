@@ -54,6 +54,10 @@ func main() {
 		log.Fatal(err)
 	}
 	userRepo := repositories.NewuserRepository(db)
+	err = userRepo.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	todoService := services.NewTodoService(todoRepo)
 	authService := services.NewAuthService(userRepo)
