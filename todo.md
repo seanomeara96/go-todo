@@ -1,1 +1,6 @@
 - hash passwords
+- find more secure auth process
+- develop locally on https
+- add premium membership
+- add "recipes" premade todo lists (exportable?)
+- design a more elegenat ui with tailwind
