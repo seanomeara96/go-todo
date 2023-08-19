@@ -38,14 +38,14 @@ func TestGetTodos(t *testing.T) {
 	}
 
 	todo := models.NewTodo(user.ID, "my new todo")
-	err = todoRepo.Create(&todo)
+	_, err = todoRepo.Create(&todo)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	todo = models.NewTodo(user.ID, "another todo")
-	err = todoRepo.Create(&todo)
+	_, err = todoRepo.Create(&todo)
 	if err != nil {
 		t.Error(err)
 		return
