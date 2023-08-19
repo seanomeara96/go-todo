@@ -70,6 +70,7 @@ func main() {
 	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodPost)
 	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)
+	r.HandleFunc("/todo/update/status/{id}", todoHandler.UpdateStatus).Methods(http.MethodPost)
 	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
 
 	log.Println("http://localhost:3000")

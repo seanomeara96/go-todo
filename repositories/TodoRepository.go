@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"database/sql"
+	"fmt"
 	"go-todo/models"
 )
 
@@ -15,18 +16,22 @@ func NewTodoRepo(db *sql.DB) *TodoRepo {
 	}
 }
 
-func (r *TodoRepo) Create(todo *models.Todo) error {
+func (r *TodoRepo) Create(todo *models.Todo) (int, error) {
 	stmt, err := r.db.Prepare(`INSERT INTO todos(user_id, description, is_complete) VALUES (?, ?, false)`)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(todo.UserID, todo.Description)
+	res, err := stmt.Exec(todo.UserID, todo.Description)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	_id, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("could not get last insert id")
+	}
+	return int(_id), nil
 }
 
 func (r *TodoRepo) Get(ID int) (*models.Todo, error) {

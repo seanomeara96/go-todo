@@ -92,7 +92,53 @@ func (h *TodoHandler) Remove(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+		} else {
+			http.Error(w, "not authorized", http.StatusBadRequest)
+			return
 		}
 
+	} else {
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
 	}
+}
+
+func (h *TodoHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	session, err := h.store.Get(r, "user-session")
+	if err != nil {
+		http.Error(w, "could not get session", http.StatusInternalServerError)
+		return
+	}
+
+	user := GetUserFromSession(session)
+
+	if user != nil {
+		vars := mux.Vars(r)
+		idParam := vars["id"]
+		todoID, err := strconv.Atoi(idParam)
+		if err != nil {
+			http.Error(w, "path does not contain valid id", http.StatusBadRequest)
+			return
+		}
+
+		todo, err := h.todoService.UpdateStatus(user.ID, todoID)
+		if err != nil {
+			http.Error(w, "could not update todo", http.StatusInternalServerError)
+			return
+		}
+
+		if todo != nil {
+			err = h.tmpl.ExecuteTemplate(w, "todo", todo)
+			if err != nil {
+				http.Error(w, "could not render todo", http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+
+		http.Error(w, "service did not return a todo item", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }

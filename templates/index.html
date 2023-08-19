@@ -171,7 +171,13 @@
 <div id="todo-{{.ID}}" style="display: flex; gap: 1rem">
   <div>{{.Description}}</div>
   <div style="display: flex; gap: 1rem">
-    <button class="ui button">Completed</button>
+    <button class="ui button" hx-post="/todo/update/status/{{.ID}}" hx-target="#todo-{{.ID}}" hx-swap="outerHTML">
+      {{ if .IsComplete }}
+       Completed
+      {{ else }}
+       Complete
+      {{ end }}
+    </button>
     <button class="ui button" hx-post="/todo/remove/{{.ID}}" hx-target="#todo-{{.ID}}" hx-swap="delete">Remove</button>
   </div>
 </div>
