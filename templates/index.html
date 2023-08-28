@@ -28,15 +28,9 @@
 {{ end }}
 
 <!---->
-{{ define "home" }} 
-  {{template "header" .}} 
-    {{ if .User }}
-      {{template "logged-in" . }}
-    {{ else }} 
-      {{ template "login-form"}}
-    {{ end }} 
-  {{ template "footer" .}} 
-{{ end }}
+{{ define "home" }} {{template "header" .}} {{ if .User }} {{template
+"logged-in" . }} {{ else }} {{ template "login-form"}} {{ end }} {{ template
+"footer" .}} {{ end }}
 
 <!-- -->
 
@@ -82,19 +76,9 @@
 
 <!---->
 
-{{ define "signup" }}
-{{ template "header" . }}
+{{ define "signup" }} {{ template "header" . }}
 
-<div
-  style="
-    position: relative;
-    max-width: 800px;
-    margin: auto;
-    top: 50%;
-    transform: translateY(-50%);
-  "
-  class="ui middle aligned center aligned grid"
->
+<div class="ui middle aligned center aligned grid">
   <div class="column">
     <h2 class="ui teal image header">
       <div class="content">Log-in to your account</div>
@@ -131,8 +115,7 @@
   </div>
 </div>
 
-{{ template "footer" . }}
-{{ end }}
+{{ template "footer" . }} {{ end }}
 
 <!-- -->
 
@@ -142,43 +125,56 @@
   <button>Log Out</button>
 </form>
 
-<div
-  style="
-    position: relative;
-    max-width: 800px;
-    margin: auto;
-    top: 50%;
-    transform: translateY(-50%);
-  "
-  class="container"
->
+<div class="container" style="max-width: 1200px; margin: auto">
   <h1>{{.User.Name}}'s Todos</h1>
 
-  <div id="todos" class="ui divided items">
-    {{ range .Todos }} 
-      {{ template "todo" .}}
-    {{ end }}</div>
-  <form hx-post="/todo/add" hx-trigger="submit" hx-target="#todos" hx-swap="beforeend">
-    <input type="text" name="description" />
-    <input class="ui button" type="submit" value="Submit" />
-  </form>
+  {{ template "todo-list" . }}
 </div>
 {{ end }}
 
 <!---->
+{{define "todo-list"}}
+<div id="todo-list">
+  <div id="todos" class="ui divided items">
+    {{ range .Todos }} {{ template "todo" .}} {{ end }}
+  </div>
+  {{ if .TodoLimitReached }}
+  <div>Youve reached your limit</div>
+  {{ else }}
+  <form
+    hx-post="/todo/add"
+    hx-trigger="submit"
+    hx-target="#todo-list"
+    hx-swap="outerHTML"
+  >
+    <input type="text" name="description" />
+    <input class="ui button" type="submit" value="Submit" />
+  </form>
+  {{ end }}
+</div>
+{{end}}
+<!---->
 
 {{ define "todo" }}
-<div id="todo-{{.ID}}" style="display: flex; gap: 1rem">
+<div id="todo-{{.ID}}">
   <div>{{.Description}}</div>
   <div style="display: flex; gap: 1rem">
-    <button class="ui button" hx-post="/todo/update/status/{{.ID}}" hx-target="#todo-{{.ID}}" hx-swap="outerHTML">
-      {{ if .IsComplete }}
-       Completed
-      {{ else }}
-       Complete
-      {{ end }}
+    <button
+      class="ui button {{ if .IsComplete }}green{{ else }}{{ end }}"
+      hx-post="/todo/update/status/{{.ID}}"
+      hx-target="#todo-{{.ID}}"
+      hx-swap="outerHTML"
+    >
+      {{ if .IsComplete }}Completed{{ else }}Complete{{ end }}
     </button>
-    <button class="ui button" hx-post="/todo/remove/{{.ID}}" hx-target="#todo-{{.ID}}" hx-swap="delete">Remove</button>
+    <button
+      class="ui button"
+      hx-post="/todo/remove/{{.ID}}"
+      hx-target="#todo-list"
+      hx-swap="outerHTML"
+    >
+      Remove
+    </button>
   </div>
 </div>
 {{ end }}

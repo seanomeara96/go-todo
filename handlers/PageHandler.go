@@ -43,14 +43,23 @@ func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	todoLimitReached := false // user.LimitReached
+	userIsPayedUser := false  //user.IsPayedUser
+
+	if !userIsPayedUser && len(list) > 9 {
+		todoLimitReached = true
+	}
+
 	type HomePageData struct {
-		User  *models.User
-		Todos []*models.Todo
+		User             *models.User
+		Todos            []*models.Todo
+		TodoLimitReached bool
 	}
 
 	var homePageData HomePageData = HomePageData{
-		User:  user,
-		Todos: list,
+		User:             user,
+		Todos:            list,
+		TodoLimitReached: todoLimitReached,
 	}
 	err = h.tmpl.ExecuteTemplate(w, "home", homePageData)
 	if err != nil {

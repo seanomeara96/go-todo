@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"go-todo/models"
 	"go-todo/services"
 	"html/template"
 	"net/http"
@@ -46,13 +47,35 @@ func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 	description := r.FormValue("description")
 
-	todo, err := h.todoService.Create(user.ID, description)
+	_, err = h.todoService.Create(user.ID, description)
 	if err != nil {
 		http.Error(w, "something went wrong whilecreating a new todo", http.StatusInternalServerError)
 		return
 	}
 
-	err = h.tmpl.ExecuteTemplate(w, "todo", todo)
+	list, err := h.todoService.GetUserTodoList(user.ID)
+	if err != nil {
+		http.Error(w, "something went wrong while fetching todos", http.StatusInternalServerError)
+		return
+	}
+
+	type TodoListParams struct {
+		Todos            []*models.Todo
+		TodoLimitReached bool
+	}
+
+	userIsPayedUser := false
+	todoLimitReached := false
+	if !userIsPayedUser && len(list) > 9 {
+		todoLimitReached = true
+	}
+
+	data := TodoListParams{
+		Todos:            list,
+		TodoLimitReached: todoLimitReached,
+	}
+
+	err = h.tmpl.ExecuteTemplate(w, "todo-list", data)
 	if err != nil {
 		http.Error(w, "could not render todo", http.StatusInternalServerError)
 		return
@@ -89,6 +112,34 @@ func (h *TodoHandler) Remove(w http.ResponseWriter, r *http.Request) {
 			err := h.todoService.Remove(todo.ID)
 			if err != nil {
 				http.Error(w, "could not remove todo", http.StatusInternalServerError)
+				return
+			}
+			// TODO this is duplicate code
+			list, err := h.todoService.GetUserTodoList(user.ID)
+			if err != nil {
+				http.Error(w, "something went wrong while fetching todos", http.StatusInternalServerError)
+				return
+			}
+
+			type TodoListParams struct {
+				Todos            []*models.Todo
+				TodoLimitReached bool
+			}
+
+			userIsPayedUser := false
+			todoLimitReached := false
+			if !userIsPayedUser && len(list) > 9 {
+				todoLimitReached = true
+			}
+
+			data := TodoListParams{
+				Todos:            list,
+				TodoLimitReached: todoLimitReached,
+			}
+
+			err = h.tmpl.ExecuteTemplate(w, "todo-list", data)
+			if err != nil {
+				http.Error(w, "could not render todo", http.StatusInternalServerError)
 				return
 			}
 
