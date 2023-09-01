@@ -69,6 +69,7 @@ func main() {
 	r.HandleFunc("/", pageHandler.Home).Methods(http.MethodGet)
 	r.HandleFunc("/signup", pageHandler.Signup).Methods(http.MethodGet)
 	r.HandleFunc("/signup", userHandler.Create).Methods(http.MethodPost)
+	r.HandleFunc("/upgrade", userHandler.Upgrade).Methods(http.MethodGet)
 	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodGet)
 	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)

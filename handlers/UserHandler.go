@@ -36,3 +36,9 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
+
+func (h *UserHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
+
+	// stripe code
+
+}

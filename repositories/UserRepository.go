@@ -15,13 +15,13 @@ func NewuserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) Save(user models.UserRecord) error {
-	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_payed_user) VALUES (?, ?, ?, ?)`)
+	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_paid_user) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(&user.ID, &user.Name, &user.Email, &user.Password, &user.IsPayedUser)
+	_, err = stmt.Exec(&user.ID, &user.Name, &user.Email, &user.Password, &user.IsPaidUser)
 	if err != nil {
 		return err
 	}
@@ -29,14 +29,14 @@ func (r *UserRepository) Save(user models.UserRecord) error {
 }
 
 func (r *UserRepository) GetUserByID(ID string) (*models.User, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email, is_payed_user FROM users WHERE id = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user FROM users WHERE id = ?`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	user := models.User{}
-	err = stmt.QueryRow(ID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPayedUser)
+	err = stmt.QueryRow(ID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser)
 	if err != nil {
 		return nil, err
 	}
@@ -44,14 +44,20 @@ func (r *UserRepository) GetUserByID(ID string) (*models.User, error) {
 }
 
 func (r *UserRepository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email, password, is_payed_user FROM users WHERE email = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, password, is_paid_user FROM users WHERE email = ?`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	userRecord := models.UserRecord{}
-	err = stmt.QueryRow(email).Scan(&userRecord.ID, &userRecord.Name, &userRecord.Email, &userRecord.Password, &userRecord.IsPayedUser)
+	err = stmt.QueryRow(email).Scan(
+		&userRecord.ID,
+		&userRecord.Name,
+		&userRecord.Email,
+		&userRecord.Password,
+		&userRecord.IsPaidUser,
+	)
 	if err != nil {
 		log.Println(err)
 		return nil, err

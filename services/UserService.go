@@ -27,7 +27,7 @@ func (s *UserService) NewUser(username, email, password string) (*models.User, e
 	if err != nil {
 		return nil, err
 	}
-	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name, userToInsert.IsPayedUser)
+	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name, userToInsert.IsPaidUser)
 	return &user, nil
 }
 
