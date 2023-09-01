@@ -1,9 +1,8 @@
 package handlers
 
 import (
-	"go-todo/models"
+	"go-todo/renderer"
 	"go-todo/services"
-	"html/template"
 	"net/http"
 	"strconv"
 
@@ -13,14 +12,16 @@ import (
 
 type TodoHandler struct {
 	todoService *services.TodoService
+	userService *services.UserService
 	store       *sqlitestore.SqliteStore
-	tmpl        *template.Template
+	renderer    *renderer.Renderer
 }
 
-func NewTodoHandler(todoService *services.TodoService, tmpl *template.Template, store *sqlitestore.SqliteStore) *TodoHandler {
+func NewTodoHandler(todoService *services.TodoService, userService *services.UserService, renderer *renderer.Renderer, store *sqlitestore.SqliteStore) *TodoHandler {
 	return &TodoHandler{
 		todoService: todoService,
-		tmpl:        tmpl,
+		userService: userService,
+		renderer:    renderer,
 		store:       store,
 	}
 }
@@ -59,28 +60,16 @@ func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type TodoListParams struct {
-		Todos            []*models.Todo
-		TodoLimitReached bool
-	}
+	userIsPayedUser := h.userService.UserIsPayedUser(user.ID)
+	canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
-	userIsPayedUser := false
-	todoLimitReached := false
-	if !userIsPayedUser && len(list) > 9 {
-		todoLimitReached = true
-	}
-
-	data := TodoListParams{
-		Todos:            list,
-		TodoLimitReached: todoLimitReached,
-	}
-
-	err = h.tmpl.ExecuteTemplate(w, "todo-list", data)
+	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
+	todoList, err := h.renderer.TodoList(todoListProps)
 	if err != nil {
 		http.Error(w, "could not render todo", http.StatusInternalServerError)
 		return
 	}
-
+	w.Write(todoList)
 }
 func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {}
 func (h *TodoHandler) Remove(w http.ResponseWriter, r *http.Request) {
@@ -121,28 +110,16 @@ func (h *TodoHandler) Remove(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			type TodoListParams struct {
-				Todos            []*models.Todo
-				TodoLimitReached bool
-			}
+			userIsPayedUser := h.userService.UserIsPayedUser(user.ID)
+			canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
-			userIsPayedUser := false
-			todoLimitReached := false
-			if !userIsPayedUser && len(list) > 9 {
-				todoLimitReached = true
-			}
-
-			data := TodoListParams{
-				Todos:            list,
-				TodoLimitReached: todoLimitReached,
-			}
-
-			err = h.tmpl.ExecuteTemplate(w, "todo-list", data)
+			props := renderer.NewTodoListProps(list, canCreateNewTodo)
+			todoListBytes, err := h.renderer.TodoList(props)
 			if err != nil {
 				http.Error(w, "could not render todo", http.StatusInternalServerError)
 				return
 			}
-
+			w.Write(todoListBytes)
 		} else {
 			http.Error(w, "not authorized", http.StatusBadRequest)
 			return
@@ -179,11 +156,12 @@ func (h *TodoHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if todo != nil {
-			err = h.tmpl.ExecuteTemplate(w, "todo", todo)
+			todoBytes, err := h.renderer.Todo(todo)
 			if err != nil {
 				http.Error(w, "could not render todo", http.StatusInternalServerError)
 				return
 			}
+			w.Write(todoBytes)
 			return
 		}
 

@@ -30,3 +30,7 @@ func (s *UserService) NewUser(username, email, password string) (*models.User, e
 	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name)
 	return &user, nil
 }
+
+func (s *UserService) UserIsPayedUser(userID string) bool {
+	return false
+}

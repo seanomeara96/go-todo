@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"go-todo/handlers"
 	"go-todo/models"
+	"go-todo/renderer"
 	"go-todo/repositories"
 	"go-todo/services"
 	"html/template"
@@ -43,7 +44,7 @@ func main() {
 	//By calling gob.Register(&CustomData{}), you're letting the gob package know how to encode and decode instances of your CustomData struct.
 	gob.Register(models.User{})
 
-	tmpl, err := template.ParseGlob("./templates/*.html")
+	tmpl, err := template.ParseGlob("./templates/**/*.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,14 +59,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	renderer := renderer.NewRenderer(tmpl)
 	todoService := services.NewTodoService(todoRepo)
 	authService := services.NewAuthService(userRepo)
 	userService := services.NewUserService(userRepo)
-	todoHandler := handlers.NewTodoHandler(todoService, tmpl, store)
-	pageHandler := handlers.NewPageHandler(userService, todoService, tmpl, store)
-	authHandler := handlers.NewAuthHandler(authService, store)
 	userHandler := handlers.NewUserHandler(userService)
+	authHandler := handlers.NewAuthHandler(authService, store)
+	todoHandler := handlers.NewTodoHandler(todoService, userService, renderer, store)
+	pageHandler := handlers.NewPageHandler(userService, todoService, renderer, store)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", pageHandler.Home).Methods(http.MethodGet)

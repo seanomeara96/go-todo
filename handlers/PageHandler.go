@@ -1,24 +1,25 @@
 package handlers
 
 import (
+	"fmt"
 	"go-todo/models"
+	"go-todo/renderer"
 	"go-todo/services"
-	"html/template"
 	"net/http"
 
 	"github.com/michaeljs1990/sqlitestore"
 )
 
 type PageHandler struct {
-	tmpl        *template.Template
+	renderer    *renderer.Renderer
 	store       *sqlitestore.SqliteStore
 	userService *services.UserService
 	todoService *services.TodoService
 }
 
-func NewPageHandler(userService *services.UserService, todoService *services.TodoService, tmpl *template.Template, store *sqlitestore.SqliteStore) *PageHandler {
+func NewPageHandler(userService *services.UserService, todoService *services.TodoService, renderer *renderer.Renderer, store *sqlitestore.SqliteStore) *PageHandler {
 	return &PageHandler{
-		tmpl:        tmpl,
+		renderer:    renderer,
 		store:       store,
 		userService: userService,
 		todoService: todoService,
@@ -33,6 +34,7 @@ func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := GetUserFromSession(session)
+	basePageProps := renderer.NewBasePageProps(user)
 
 	var list []*models.Todo
 	if user != nil {
@@ -41,31 +43,27 @@ func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not get users list of todos", http.StatusInternalServerError)
 			return
 		}
-	}
+		userIsPayedUser := h.userService.UserIsPayedUser(user.ID)
+		canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
-	todoLimitReached := false // user.LimitReached
-	userIsPayedUser := false  //user.IsPayedUser
-
-	if !userIsPayedUser && len(list) > 9 {
-		todoLimitReached = true
-	}
-
-	type HomePageData struct {
-		User             *models.User
-		Todos            []*models.Todo
-		TodoLimitReached bool
-	}
-
-	var homePageData HomePageData = HomePageData{
-		User:             user,
-		Todos:            list,
-		TodoLimitReached: todoLimitReached,
-	}
-	err = h.tmpl.ExecuteTemplate(w, "home", homePageData)
-	if err != nil {
-		http.Error(w, "Could not render homepage", http.StatusInternalServerError)
+		todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
+		homePageLoggedInProps := renderer.NewHomePageLoggedInProps(basePageProps, todoListProps)
+		homePageBytes, err := h.renderer.HomePageLoggedIn(homePageLoggedInProps)
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, "Could not render homepage", http.StatusInternalServerError)
+			return
+		}
+		w.Write(homePageBytes)
 		return
 	}
+	homePageLoggedOutProps := renderer.NewHomePageLoggedOutProps(basePageProps)
+	homePageLoggedOutBytes, err := h.renderer.HomePageLoggedOut(homePageLoggedOutProps)
+	if err != nil {
+		http.Error(w, "could not render home-logged-out", http.StatusInternalServerError)
+		return
+	}
+	w.Write(homePageLoggedOutBytes)
 }
 
 func (h *PageHandler) Signup(w http.ResponseWriter, r *http.Request) {
@@ -81,10 +79,12 @@ func (h *PageHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.tmpl.ExecuteTemplate(w, "signup", nil)
+	basePageProps := renderer.NewBasePageProps(user)
+	signupPageProps := renderer.NewSignupPageProps(basePageProps)
+	signupPageBytes, err := h.renderer.Signup(signupPageProps)
 	if err != nil {
 		http.Error(w, "could not render sigup page", http.StatusInternalServerError)
 		return
 	}
-
+	w.Write(signupPageBytes)
 }
