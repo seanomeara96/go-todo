@@ -76,6 +76,7 @@ func main() {
 	r.HandleFunc("/todo/update/status/{id}", todoHandler.UpdateStatus).Methods(http.MethodPost)
 	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
 
-	log.Println("http://localhost:3000")
-	log.Fatal(http.ListenAndServe(":3000", r))
+	log.Println("https://localhost:3000")
+	//log.Fatal(http.ListenAndServe(":3000", r))
+	http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r)
 }
