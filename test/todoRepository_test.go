@@ -28,7 +28,7 @@ func TestGetTodos(t *testing.T) {
 	ID := uuid.New().String()
 	name := "example-name"
 	email := "example@example.com"
-	user := models.NewUser(ID, name, email)
+	user := models.NewUser(ID, name, email, false)
 
 	todoRepo := repositories.NewTodoRepo(db)
 	err = todoRepo.Init()

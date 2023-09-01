@@ -22,12 +22,12 @@ func (s *UserService) NewUser(username, email, password string) (*models.User, e
 	id := uuid.New().String()
 
 	// need to remomber to hash password first
-	userToInsert := models.NewUserRecord(id, username, email, password)
+	userToInsert := models.NewUserRecord(id, username, email, password, false)
 	err := s.userRepo.Save(userToInsert)
 	if err != nil {
 		return nil, err
 	}
-	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name)
+	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name, userToInsert.IsPayedUser)
 	return &user, nil
 }
 

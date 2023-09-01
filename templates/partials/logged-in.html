@@ -1,8 +1,9 @@
 {{ define "logged-in"}}
 
-<form method="POST" action="/logout">
-  <button>Log Out</button>
-</form>
+
+<a href="/logout"><button>Log Out</button></a>
+{{ if.User.IsPayedUser }}{{else}}<a href="/upgrade"><button>Upgrade</button></a>{{end}}
+
 
 <div class="container" style="max-width: 1200px; margin: auto">
   <h1>{{.User.Name}}'s Todos</h1>

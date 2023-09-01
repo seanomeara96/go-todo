@@ -35,7 +35,7 @@ func (s *AuthService) Login(email string, password string) (*models.User, error)
 		return nil, fmt.Errorf("incorrect password")
 	}
 
-	user := models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email)
+	user := models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPayedUser)
 
 	return &user, nil
 }

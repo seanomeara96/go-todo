@@ -15,13 +15,13 @@ func NewuserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) Save(user models.UserRecord) error {
-	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password) VALUES (?, ?, ?, ?)`)
+	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_payed_user) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(user.ID, user.Name, user.Email, user.Password)
+	_, err = stmt.Exec(&user.ID, &user.Name, &user.Email, &user.Password, &user.IsPayedUser)
 	if err != nil {
 		return err
 	}
@@ -29,14 +29,14 @@ func (r *UserRepository) Save(user models.UserRecord) error {
 }
 
 func (r *UserRepository) GetUserByID(ID string) (*models.User, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email FROM users WHERE id = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, is_payed_user FROM users WHERE id = ?`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	user := models.User{}
-	err = stmt.QueryRow(ID).Scan(user.ID, user.Name, user.Email)
+	err = stmt.QueryRow(ID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPayedUser)
 	if err != nil {
 		return nil, err
 	}
@@ -44,26 +44,17 @@ func (r *UserRepository) GetUserByID(ID string) (*models.User, error) {
 }
 
 func (r *UserRepository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email, password FROM users WHERE email = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, password, is_payed_user FROM users WHERE email = ?`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	userRecord := models.UserRecord{}
-	err = stmt.QueryRow(email).Scan(&userRecord.ID, &userRecord.Name, &userRecord.Email, &userRecord.Password)
+	err = stmt.QueryRow(email).Scan(&userRecord.ID, &userRecord.Name, &userRecord.Email, &userRecord.Password, &userRecord.IsPayedUser)
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
 	return &userRecord, nil
-}
-
-func (r *UserRepository) Init() error {
-	_, err := r.db.Exec(`CREATE TABLE IF NOT EXISTS users(
-		id TEXT PRIMARY KEY UNIQUE NOT NULL,
-		name TEXT DEFAULT "",
-		email TEXT DEFAULT "",
-		password TEXT DEFAULT "")`)
-	return err
 }

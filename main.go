@@ -55,10 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 	userRepo := repositories.NewuserRepository(db)
-	err = userRepo.Init()
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	renderer := renderer.NewRenderer(tmpl)
 	todoService := services.NewTodoService(todoRepo)
 	authService := services.NewAuthService(userRepo)
@@ -73,7 +70,7 @@ func main() {
 	r.HandleFunc("/signup", pageHandler.Signup).Methods(http.MethodGet)
 	r.HandleFunc("/signup", userHandler.Create).Methods(http.MethodPost)
 	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
-	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodPost)
+	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodGet)
 	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)
 	r.HandleFunc("/todo/update/status/{id}", todoHandler.UpdateStatus).Methods(http.MethodPost)
 	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
