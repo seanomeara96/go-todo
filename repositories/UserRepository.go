@@ -15,14 +15,16 @@ func NewuserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) Save(user models.UserRecord) error {
-	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_paid_user) VALUES (?, ?, ?, ?)`)
+	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_paid_user) VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(&user.ID, &user.Name, &user.Email, &user.Password, &user.IsPaidUser)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	return nil
