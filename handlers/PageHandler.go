@@ -26,6 +26,16 @@ func NewPageHandler(userService *services.UserService, todoService *services.Tod
 	}
 }
 
+func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
+	// Set cache-control headers to prevent caching
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Redirect the user to a new URL
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
@@ -75,7 +85,7 @@ func (h *PageHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 	user := GetUserFromSession(session)
 	if user != nil {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		noCacheRedirect(w, r)
 		return
 	}
 
@@ -112,15 +122,15 @@ func (h *PageHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
 func (h *PageHandler) Success(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	user := GetUserFromSession(session)
-
+	fmt.Println("user", user)
 	if user == nil {
 		// TODO handle this properly
 		fmt.Println("handle this properly")
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		noCacheRedirect(w, r)
 		return
 	}
 	basePageProps := renderer.NewBasePageProps(user)
