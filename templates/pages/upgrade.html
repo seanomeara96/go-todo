@@ -1,0 +1,10 @@
+{{ define "upgrade"}}
+{{ template "header"}}
+<form action="/create-checkout-session" method="POST">
+  <!-- Note: If using PHP set the action to /create-checkout-session.php -->
+
+  <input type="hidden" name="priceId" value="price_1NlpMHJ6hGciURAFUvHsGcdM" />
+  <button type="submit">Checkout</button>
+</form>
+{{ template "footer" }}
+{{ end }}
