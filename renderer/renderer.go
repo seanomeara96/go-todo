@@ -37,6 +37,14 @@ func (r *Renderer) Upgrade(p UpgradePageProps) ([]byte, error) {
 	return r.render("upgrade", p)
 }
 
+func (r *Renderer) Success(p SuccessPageProps) ([]byte, error) {
+	return r.render("success", p)
+}
+
+func (r *Renderer) Cancel(p CancelPageProps) ([]byte, error) {
+	return r.render("cancel", p)
+}
+
 // partials
 
 func (r *Renderer) TodoList(p TodoListProps) ([]byte, error) {

@@ -75,3 +75,23 @@ func NewUpgradePageProps(basePageProps BasePageProps) UpgradePageProps {
 		BasePageProps: basePageProps,
 	}
 }
+
+type SuccessPageProps struct {
+	BasePageProps
+}
+
+func NewSuccessPageProps(basePageProps BasePageProps) SuccessPageProps {
+	return SuccessPageProps{
+		BasePageProps: basePageProps,
+	}
+}
+
+type CancelPageProps struct {
+	BasePageProps
+}
+
+func NewCancelPageProps(basePageProps BasePageProps) CancelPageProps {
+	return CancelPageProps{
+		BasePageProps: basePageProps,
+	}
+}

@@ -108,3 +108,51 @@ func (h *PageHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	w.Write(upgradePageBytes)
 
 }
+
+func (h *PageHandler) Success(w http.ResponseWriter, r *http.Request) {
+	session, err := h.store.Get(r, "user-session")
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
+	}
+	user := GetUserFromSession(session)
+
+	if user == nil {
+		// TODO handle this properly
+		fmt.Println("handle this properly")
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
+	}
+	basePageProps := renderer.NewBasePageProps(user)
+	successPageProps := renderer.NewSuccessPageProps(basePageProps)
+	bytes, err := h.renderer.Success(successPageProps)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(bytes)
+}
+
+func (h *PageHandler) Cancel(w http.ResponseWriter, r *http.Request) {
+	session, err := h.store.Get(r, "user-session")
+	if err != nil {
+		http.Error(w, "could not get session", http.StatusInternalServerError)
+		return
+	}
+
+	user := GetUserFromSession(session)
+
+	if user == nil {
+		//...
+	}
+
+	basePageProps := renderer.NewBasePageProps(user)
+	cancelPageProps := renderer.NewCancelPageProps(basePageProps)
+	bytes, err := h.renderer.Cancel(cancelPageProps)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
+}

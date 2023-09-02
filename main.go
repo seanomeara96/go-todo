@@ -68,6 +68,8 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", pageHandler.Home).Methods(http.MethodGet)
 	r.HandleFunc("/signup", pageHandler.Signup).Methods(http.MethodGet)
+	r.HandleFunc("/success", pageHandler.Success).Methods(http.MethodGet)
+	r.HandleFunc("/cancel", pageHandler.Cancel).Methods(http.MethodGet)
 	r.HandleFunc("/signup", userHandler.Create).Methods(http.MethodPost)
 	r.HandleFunc("/upgrade", pageHandler.Upgrade).Methods(http.MethodGet)
 	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
