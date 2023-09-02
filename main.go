@@ -77,8 +77,9 @@ func main() {
 	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)
 	r.HandleFunc("/todo/update/status/{id}", todoHandler.UpdateStatus).Methods(http.MethodPost)
 	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
-	r.HandleFunc("/create-checkout-session", userHandler.CreateCheckoutSession).Methods(http.MethodPost)
+	r.HandleFunc("/create-checkout-session", pageHandler.CreateCheckoutSession).Methods(http.MethodPost)
+	r.HandleFunc("/webhook", pageHandler.HandleStripeWebhook).Methods(http.MethodPost)
 	log.Println("https://localhost:3000")
-	//log.Fatal(http.ListenAndServe(":3000", r))
-	log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
+	log.Fatal(http.ListenAndServe(":3000", r))
+	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }
