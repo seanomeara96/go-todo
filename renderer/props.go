@@ -65,3 +65,13 @@ func NewSignupPageProps(basePageProps BasePageProps) SignupPageProps {
 		BasePageProps: basePageProps,
 	}
 }
+
+type UpgradePageProps struct {
+	BasePageProps
+}
+
+func NewUpgradePageProps(basePageProps BasePageProps) UpgradePageProps {
+	return UpgradePageProps{
+		BasePageProps: basePageProps,
+	}
+}

@@ -33,6 +33,10 @@ func (r *Renderer) Signup(p SignupPageProps) ([]byte, error) {
 	return r.render("signup", p)
 }
 
+func (r *Renderer) Upgrade(p UpgradePageProps) ([]byte, error) {
+	return r.render("upgrade", p)
+}
+
 // partials
 
 func (r *Renderer) TodoList(p TodoListProps) ([]byte, error) {

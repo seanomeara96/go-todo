@@ -45,6 +45,28 @@ func (r *UserRepository) GetUserByID(ID string) (*models.User, error) {
 	return &user, nil
 }
 
+func (r *UserRepository) AddStripeIDToUser(userID, stripeID string) error {
+	stmt, err := r.db.Prepare(`UPDATE users SET customer_stripe_id = ? WHERE id = ?`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(stripeID, userID)
+	return err
+}
+
+func (r *UserRepository) UpdateUserPaymentStatus(userID string, isPaidUser bool) error {
+	stmt, err := r.db.Prepare(`UPDATE users SETis_paid_user = ? WHERE id = ?`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(isPaidUser, userID)
+	return err
+}
+
 func (r *UserRepository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {
 	stmt, err := r.db.Prepare(`SELECT id, name, email, password, is_paid_user FROM users WHERE email = ?`)
 	if err != nil {

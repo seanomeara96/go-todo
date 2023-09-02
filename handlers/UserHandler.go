@@ -3,6 +3,10 @@ package handlers
 import (
 	"go-todo/services"
 	"net/http"
+	"os"
+
+	"github.com/stripe/stripe-go/v75"
+	"github.com/stripe/stripe-go/v75/checkout/session"
 )
 
 type UserHandler struct {
@@ -37,8 +41,34 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
-func (h *UserHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
 
-	// stripe code
+	stripe.Key = os.Getenv("STRIPE_API_KEY")
+	priceId := "price_1NlpMHJ6hGciURAFUvHsGcdM"
 
+	successUrl := "https://example.com/success.html?session_id={CHECKOUT_SESSION_ID}"
+	canceledUrl := "https://example.com/canceled.html"
+	params := &stripe.CheckoutSessionParams{
+		SuccessURL: &successUrl,
+		CancelURL:  &canceledUrl,
+		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				Price: stripe.String(priceId),
+				// For metered billing, do not pass quantity
+				Quantity: stripe.Int64(1),
+			},
+		},
+	}
+
+	s, _ := session.New(params)
+
+	// Then redirect to the URL on the Checkout Session
+	http.Redirect(w, r, s.URL, http.StatusSeeOther)
 }
+
+// func (h *UserHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
+
+// 	// stripe code
+
+// }

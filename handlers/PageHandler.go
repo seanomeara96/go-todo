@@ -88,3 +88,23 @@ func (h *PageHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(signupPageBytes)
 }
+
+func (h *PageHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
+	session, err := h.store.Get(r, "user-session")
+	if err != nil {
+		http.Error(w, "could not get user from store", http.StatusInternalServerError)
+		return
+	}
+
+	user := GetUserFromSession(session)
+
+	basePageProps := renderer.NewBasePageProps(user)
+	upgradePageProps := renderer.NewUpgradePageProps(basePageProps)
+	upgradePageBytes, err := h.renderer.Upgrade(upgradePageProps)
+	if err != nil {
+		http.Error(w, "could not render upgrade page", http.StatusInternalServerError)
+		return
+	}
+	w.Write(upgradePageBytes)
+
+}

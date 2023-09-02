@@ -69,14 +69,14 @@ func main() {
 	r.HandleFunc("/", pageHandler.Home).Methods(http.MethodGet)
 	r.HandleFunc("/signup", pageHandler.Signup).Methods(http.MethodGet)
 	r.HandleFunc("/signup", userHandler.Create).Methods(http.MethodPost)
-	r.HandleFunc("/upgrade", userHandler.Upgrade).Methods(http.MethodGet)
+	r.HandleFunc("/upgrade", pageHandler.Upgrade).Methods(http.MethodGet)
 	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodGet)
 	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)
 	r.HandleFunc("/todo/update/status/{id}", todoHandler.UpdateStatus).Methods(http.MethodPost)
 	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
-
+	r.HandleFunc("/create-checkout-session", userHandler.CreateCheckoutSession).Methods(http.MethodPost)
 	log.Println("https://localhost:3000")
 	//log.Fatal(http.ListenAndServe(":3000", r))
-	http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r)
+	log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }
