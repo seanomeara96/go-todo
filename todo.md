@@ -5,3 +5,4 @@
 - design a more elegenat ui with tailwind
 - provision subscription based on webhook
 - setup customer portal
+- consolidate handlers, services and repos
