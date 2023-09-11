@@ -1,22 +1,11 @@
 package repositories
 
 import (
-	"database/sql"
 	"fmt"
 	"go-todo/models"
 )
 
-type TodoRepo struct {
-	db *sql.DB
-}
-
-func NewTodoRepo(db *sql.DB) *TodoRepo {
-	return &TodoRepo{
-		db: db,
-	}
-}
-
-func (r *TodoRepo) Create(todo *models.Todo) (int, error) {
+func (r *Repository) CreateTodo(todo *models.Todo) (int, error) {
 	stmt, err := r.db.Prepare(`INSERT INTO todos(user_id, description, is_complete) VALUES (?, ?, false)`)
 	if err != nil {
 		return 0, err
@@ -34,7 +23,7 @@ func (r *TodoRepo) Create(todo *models.Todo) (int, error) {
 	return int(_id), nil
 }
 
-func (r *TodoRepo) Get(ID int) (*models.Todo, error) {
+func (r *Repository) GetTodoByID(ID int) (*models.Todo, error) {
 	stmt, err := r.db.Prepare("SELECT id, user_id, description, is_complete FROM todos WHERE id = ?")
 	if err != nil {
 		return nil, err
@@ -50,7 +39,7 @@ func (r *TodoRepo) Get(ID int) (*models.Todo, error) {
 
 }
 
-func (r *TodoRepo) GetAll(userID string) ([]*models.Todo, error) {
+func (r *Repository) GetAllTodosByUserID(userID string) ([]*models.Todo, error) {
 	stmt, err := r.db.Prepare(`SELECT id, user_id, description, is_complete FROM todos WHERE user_id = ?`)
 	if err != nil {
 		return nil, err
@@ -76,7 +65,7 @@ func (r *TodoRepo) GetAll(userID string) ([]*models.Todo, error) {
 	return todoList, nil
 }
 
-func (r *TodoRepo) Update(todo models.Todo) error {
+func (r *Repository) UpdateTodo(todo models.Todo) error {
 	stmt, err := r.db.Prepare(`UPDATE todos SET user_id = ?, description = ?, is_complete = ? WHERE id = ?`)
 	if err != nil {
 		return err
@@ -90,7 +79,7 @@ func (r *TodoRepo) Update(todo models.Todo) error {
 	return nil
 }
 
-func (r *TodoRepo) Delete(todoID int) error {
+func (r *Repository) DeleteTodo(todoID int) error {
 	stmt, err := r.db.Prepare("DELETE FROM todos WHERE id = ?")
 	if err != nil {
 		return err
@@ -98,16 +87,5 @@ func (r *TodoRepo) Delete(todoID int) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(todoID)
-	return err
-}
-
-func (r *TodoRepo) Init() error {
-	_, err := r.db.Exec(`CREATE TABLE IF NOT EXISTS todos(
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id TEXT,
-		description TEXT DEFAULT "",
-		is_complete BOOLEAN DEFAULT FALSE,
-		FOREIGN KEY (user_id) REFERENCES users(id)
-	)`)
 	return err
 }

@@ -3,21 +3,10 @@ package services
 import (
 	"fmt"
 	"go-todo/models"
-	"go-todo/repositories"
 )
 
-type AuthService struct {
-	userRepo *repositories.UserRepository
-}
-
-func NewAuthService(u *repositories.UserRepository) *AuthService {
-	return &AuthService{
-		userRepo: u,
-	}
-}
-
-func (s *AuthService) Login(email string, password string) (*models.User, error) {
-	userRecord, err := s.userRepo.GetUserRecordByEmail(email)
+func (s *Service) Login(email string, password string) (*models.User, error) {
+	userRecord, err := s.repo.GetUserRecordByEmail(email)
 	if err != nil {
 		return nil, err
 	}

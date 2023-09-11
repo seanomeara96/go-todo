@@ -4,33 +4,15 @@ import (
 	"fmt"
 	"go-todo/models"
 	"go-todo/renderer"
-	"go-todo/services"
 	"io"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/michaeljs1990/sqlitestore"
 	"github.com/stripe/stripe-go/v75"
 	"github.com/stripe/stripe-go/v75/checkout/session"
 	"github.com/stripe/stripe-go/v75/webhook"
 )
-
-type PageHandler struct {
-	renderer    *renderer.Renderer
-	store       *sqlitestore.SqliteStore
-	userService *services.UserService
-	todoService *services.TodoService
-}
-
-func NewPageHandler(userService *services.UserService, todoService *services.TodoService, renderer *renderer.Renderer, store *sqlitestore.SqliteStore) *PageHandler {
-	return &PageHandler{
-		renderer:    renderer,
-		store:       store,
-		userService: userService,
-		todoService: todoService,
-	}
-}
 
 func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 	// Set cache-control headers to prevent caching
@@ -42,7 +24,7 @@ func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, "Could not get user from store", http.StatusInternalServerError)
@@ -54,12 +36,12 @@ func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
 
 	var list []*models.Todo
 	if user != nil {
-		list, err = h.todoService.GetUserTodoList(user.ID)
+		list, err = h.service.GetUserTodoList(user.ID)
 		if err != nil {
 			http.Error(w, "could not get users list of todos", http.StatusInternalServerError)
 			return
 		}
-		userIsPayedUser := h.userService.UserIsPayedUser(user.ID)
+		userIsPayedUser := h.service.UserIsPayedUser(user.ID)
 		canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
 		todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
@@ -82,7 +64,7 @@ func (h *PageHandler) Home(w http.ResponseWriter, r *http.Request) {
 	w.Write(homePageLoggedOutBytes)
 }
 
-func (h *PageHandler) Signup(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Signup(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, "Could not get user from store", http.StatusInternalServerError)
@@ -105,7 +87,7 @@ func (h *PageHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	w.Write(signupPageBytes)
 }
 
-func (h *PageHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, "could not get user from store", http.StatusInternalServerError)
@@ -125,7 +107,7 @@ func (h *PageHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *PageHandler) Success(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Success(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -147,7 +129,7 @@ func (h *PageHandler) Success(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
-func (h *PageHandler) Cancel(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, "could not get session", http.StatusInternalServerError)
@@ -172,17 +154,38 @@ func (h *PageHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	w.Write(bytes)
 }
 
-func (h *PageHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
 
-	stripe.Key = os.Getenv("STRIPE_API_KEY")
+	sess, err := h.store.Get(r, "user-session")
+	if err != nil {
+		http.Error(w, "could not retrieve user session", http.StatusInternalServerError)
+		return
+	}
+
+	user := GetUserFromSession(sess)
+	if user == nil {
+		noCacheRedirect(w, r)
+		return
+	}
+
+	stripeKey := os.Getenv("STRIPE_API_KEY")
+
+	if stripeKey == "" {
+		http.Error(w, "no stripe api key", http.StatusInternalServerError)
+		return
+	}
+
+	stripe.Key = stripeKey
+
 	priceId := "price_1NlpMHJ6hGciURAFUvHsGcdM"
 
-	successUrl := "https://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}"
-	canceledUrl := "https://localhost:3000/canceled"
+	successUrl := "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}"
+	canceledUrl := "http://localhost:3000/canceled"
 	params := &stripe.CheckoutSessionParams{
-		SuccessURL: &successUrl,
-		CancelURL:  &canceledUrl,
-		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		CustomerEmail: stripe.String(user.Email),
+		SuccessURL:    &successUrl,
+		CancelURL:     &canceledUrl,
+		Mode:          stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price: stripe.String(priceId),
@@ -198,7 +201,7 @@ func (h *PageHandler) CreateCheckoutSession(w http.ResponseWriter, r *http.Reque
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
 }
 
-func (h *PageHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -228,13 +231,14 @@ func (h *PageHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request
 
 	switch event.Type {
 	case "checkout.session.completed":
-		fmt.Println("cehckout session completed")
-		// do somehting here
-		// activate  user premium status
+		fmt.Println("checkout session completed")
 	case "invoice.paid":
 		fmt.Println("invoice paid")
-		//do somthing here
-		// activate user premium status
+		checkoutID := event.Data.Object["id"]
+		customerID := event.Data.Object["customer"]
+		customerEmail := event.Data.Object["customer_email"]
+
+		fmt.Println(checkoutID, customerID, customerEmail)
 	case "invoice.payment_failed":
 		// deactivate user premium status
 	default:

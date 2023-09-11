@@ -14,11 +14,19 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/michaeljs1990/sqlitestore"
 )
 
 func main() {
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file:", err)
+		// You can choose to handle the error here or exit the program.
+	}
+
 	db, err := sql.Open("sqlite3", "main.db")
 	if err != nil {
 		log.Fatal(err)
@@ -49,37 +57,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	todoRepo := repositories.NewTodoRepo(db)
-	err = todoRepo.Init()
-	if err != nil {
-		log.Fatal(err)
-	}
-	userRepo := repositories.NewuserRepository(db)
-
+	repository := repositories.NewRepository(db)
+	service := services.NewService(repository)
 	renderer := renderer.NewRenderer(tmpl)
-	todoService := services.NewTodoService(todoRepo)
-	authService := services.NewAuthService(userRepo)
-	userService := services.NewUserService(userRepo)
-	userHandler := handlers.NewUserHandler(userService)
-	authHandler := handlers.NewAuthHandler(authService, store)
-	todoHandler := handlers.NewTodoHandler(todoService, userService, renderer, store)
-	pageHandler := handlers.NewPageHandler(userService, todoService, renderer, store)
+	handler := handlers.NewHandler(service, store, renderer)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", pageHandler.Home).Methods(http.MethodGet)
-	r.HandleFunc("/signup", pageHandler.Signup).Methods(http.MethodGet)
-	r.HandleFunc("/success", pageHandler.Success).Methods(http.MethodGet)
-	r.HandleFunc("/cancel", pageHandler.Cancel).Methods(http.MethodGet)
-	r.HandleFunc("/signup", userHandler.Create).Methods(http.MethodPost)
-	r.HandleFunc("/upgrade", pageHandler.Upgrade).Methods(http.MethodGet)
-	r.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
-	r.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodGet)
-	r.HandleFunc("/todo/add", todoHandler.Add).Methods(http.MethodPost)
-	r.HandleFunc("/todo/update/status/{id}", todoHandler.UpdateStatus).Methods(http.MethodPost)
-	r.HandleFunc("/todo/remove/{id}", todoHandler.Remove).Methods(http.MethodPost)
-	r.HandleFunc("/create-checkout-session", pageHandler.CreateCheckoutSession).Methods(http.MethodPost)
-	r.HandleFunc("/webhook", pageHandler.HandleStripeWebhook).Methods(http.MethodPost)
-	log.Println("https://localhost:3000")
+	r.HandleFunc("/", handler.Home).Methods(http.MethodGet)
+	r.HandleFunc("/signup", handler.Signup).Methods(http.MethodGet)
+	r.HandleFunc("/success", handler.Success).Methods(http.MethodGet)
+	r.HandleFunc("/cancel", handler.Cancel).Methods(http.MethodGet)
+	r.HandleFunc("/signup", handler.Create).Methods(http.MethodPost)
+	r.HandleFunc("/upgrade", handler.Upgrade).Methods(http.MethodGet)
+	r.HandleFunc("/login", handler.Login).Methods(http.MethodPost)
+	r.HandleFunc("/logout", handler.Logout).Methods(http.MethodGet)
+	r.HandleFunc("/todo/add", handler.Add).Methods(http.MethodPost)
+	r.HandleFunc("/todo/update/status/{id}", handler.UpdateStatus).Methods(http.MethodPost)
+	r.HandleFunc("/todo/remove/{id}", handler.Remove).Methods(http.MethodPost)
+	r.HandleFunc("/create-checkout-session", handler.CreateCheckoutSession).Methods(http.MethodPost)
+	r.HandleFunc("/webhook", handler.HandleStripeWebhook).Methods(http.MethodPost)
+	log.Println("http://localhost:3000")
 	log.Fatal(http.ListenAndServe(":3000", r))
 	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }
