@@ -63,7 +63,7 @@ func (r *Repository) AddStripeIDToUser(userID, stripeID string) error {
 }
 
 func (r *Repository) UpdateUserPaymentStatus(userID string, isPaidUser bool) error {
-	stmt, err := r.db.Prepare(`UPDATE users SETis_paid_user = ? WHERE id = ?`)
+	stmt, err := r.db.Prepare(`UPDATE users SET is_paid_user = ? WHERE id = ?`)
 	if err != nil {
 		return err
 	}
@@ -71,6 +71,21 @@ func (r *Repository) UpdateUserPaymentStatus(userID string, isPaidUser bool) err
 
 	_, err = stmt.Exec(isPaidUser, userID)
 	return err
+}
+
+func (r *Repository) UserIsPaidUser(userID string) (bool, error) {
+	stmt, err := r.db.Prepare(`SELECT is_paid_user FROM users WHERE id = ?`)
+	if err != nil {
+		return false, err
+	}
+	defer stmt.Close()
+
+	var isPaidUser bool
+	err = stmt.QueryRow(userID).Scan(&isPaidUser)
+	if err != nil {
+		return false, err
+	}
+	return isPaidUser, nil
 }
 
 func (r *Repository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {

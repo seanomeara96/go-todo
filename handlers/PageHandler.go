@@ -41,7 +41,13 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not get users list of todos", http.StatusInternalServerError)
 			return
 		}
-		userIsPayedUser := h.service.UserIsPayedUser(user.ID)
+
+		userIsPayedUser, err := h.service.UserIsPaidUser(user.ID)
+		if err != nil {
+			http.Error(w, "error determining user payment status", http.StatusInternalServerError)
+			return
+		}
+
 		canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
 		todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
@@ -108,17 +114,47 @@ func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Success(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	userSession, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	user := GetUserFromSession(session)
+	user := GetUserFromSession(userSession)
 
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
 	}
+
+	checkoutSessionID := r.URL.Query().Get("session_id")
+
+	stripe.Key = os.Getenv("STRIPE_API_KEY")
+
+	s, _ := session.Get(
+		checkoutSessionID,
+		nil,
+	)
+
+	user, err = h.service.GetUserByEmail(s.CustomerEmail)
+	if err != nil {
+		http.Error(w, "could not find user", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.service.AddStripeIDToUser(user.ID, s.Customer.ID)
+	if err != nil {
+		http.Error(w, "could not add customer details to user", http.StatusInternalServerError)
+		return
+	}
+
+	if s.PaymentStatus == "paid" {
+		err = h.service.UpdateUserPaymentStatus(user.ID, true)
+		if err != nil {
+			http.Error(w, "could not update user payment status", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	basePageProps := renderer.NewBasePageProps(user)
 	successPageProps := renderer.NewSuccessPageProps(basePageProps)
 	bytes, err := h.renderer.Success(successPageProps)

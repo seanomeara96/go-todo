@@ -20,14 +20,18 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 	return &user, nil
 }
 
-func (s *Service) UserIsPayedUser(userID string) bool {
-	return false
-}
-
 func (s *Service) AddStripeIDToUser(userID, stripeID string) error {
 	return s.repo.AddStripeIDToUser(userID, stripeID)
 }
 
 func (s *Service) GetUserByEmail(email string) (*models.User, error) {
 	return s.repo.GetUserByEmail(email)
+}
+
+func (s *Service) UpdateUserPaymentStatus(userID string, isPaidUser bool) error {
+	return s.repo.UpdateUserPaymentStatus(userID, isPaidUser)
+}
+
+func (s *Service) UserIsPaidUser(userID string) (bool, error) {
+	return s.repo.UserIsPaidUser(userID)
 }

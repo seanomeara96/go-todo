@@ -42,7 +42,11 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userIsPayedUser := h.service.UserIsPayedUser(user.ID)
+	userIsPayedUser, err := h.service.UserIsPaidUser(user.ID)
+	if err != nil {
+		http.Error(w, "error  determingin user paymnet status", http.StatusInternalServerError)
+		return
+	}
 	canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
 	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
@@ -92,7 +96,11 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			userIsPayedUser := h.service.UserIsPayedUser(user.ID)
+			userIsPayedUser, err := h.service.UserIsPaidUser(user.ID)
+			if err != nil {
+				http.Error(w, "error  determingin user paymnet status", http.StatusInternalServerError)
+				return
+			}
 			canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
 			props := renderer.NewTodoListProps(list, canCreateNewTodo)
