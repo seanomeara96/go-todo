@@ -1,8 +1,9 @@
 package services
 
 import (
+	"regexp"
 	"go-todo/models"
-
+	
 	"github.com/google/uuid"
 )
 
@@ -45,7 +46,7 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 		userToInsert.Name, 
 		userToInsert.IsPaidUser,
 	)
-	
+
 	return &user, nil
 }
 
