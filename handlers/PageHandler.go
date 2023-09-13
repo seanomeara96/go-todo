@@ -93,6 +93,10 @@ func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := GetUserFromSession(session)
+	if user == nil {
+		noCacheRedirect(w, r)
+		return
+	}
 
 	basePageProps := renderer.NewBasePageProps(user)
 	upgradePageProps := renderer.NewUpgradePageProps(basePageProps)
@@ -101,8 +105,8 @@ func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not render upgrade page", http.StatusInternalServerError)
 		return
 	}
-	w.Write(upgradePageBytes)
 
+	w.Write(upgradePageBytes)
 }
 
 func (h *Handler) Success(w http.ResponseWriter, r *http.Request) {
