@@ -32,13 +32,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store, err := sqlitestore.NewSqliteStore(
-		"./main.db",
-		"sessions",
-		"/",
-		3600,
-		[]byte("<SecretKey>"),
-	)
+	secretKey := []byte(os.Getenv("SECRET_KEY"))
+	store, err := sqlitestore.NewSqliteStore("./sessions.db", "sessions", "/", 3600, secretKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +47,8 @@ func main() {
 	//By calling gob.Register(&CustomData{}), you're letting the gob package know how to encode and decode instances of your CustomData struct.
 	gob.Register(models.User{})
 
-	tmpl, err := template.ParseGlob("./templates/**/*.html")
+	templateGlobPath := "./templates/**/*.html"
+	tmpl, err := template.ParseGlob(templateGlobPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,6 +72,7 @@ func main() {
 	r.HandleFunc("/todo/remove/{id}", handler.Remove).Methods(http.MethodPost)
 	r.HandleFunc("/create-checkout-session", handler.CreateCheckoutSession).Methods(http.MethodPost)
 	r.HandleFunc("/webhook", handler.HandleStripeWebhook).Methods(http.MethodPost)
+
 	log.Println("http://localhost:3000")
 	log.Fatal(http.ListenAndServe(":3000", r))
 	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
