@@ -6,9 +6,31 @@ import (
 	"github.com/google/uuid"
 )
 
+func isValidEmail(email string) bool {
+    emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+    return emailRegex.MatchString(email)
+}
+
 func (s *Service) NewUser(username, email, password string) (*models.User, error) {
 	// sanitize and  clean usernalme email
 	id := uuid.New().String()
+
+	username = html.EscapeString(username)
+	email = html.EscapeString(email)
+
+	if !isValidEmail(email) {
+		return nil, fmt.Errorf("must provide a valid email")
+	}
+
+	// does email exist
+	found, err := s.repo.UserEmailExists(email)
+	if err != nil {
+		return nil, fmt.Errorf("could not determin existence of email")
+	}
+
+	if found {
+		return nil, fmt.Errorf("must supply unique email")
+	}
 
 	// need to remomber to hash password first
 	userToInsert := models.NewUserRecord(id, username, email, password, false)
@@ -16,7 +38,14 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 	if err != nil {
 		return nil, err
 	}
-	user := models.NewUser(userToInsert.ID, userToInsert.Email, userToInsert.Name, userToInsert.IsPaidUser)
+
+	user := models.NewUser(
+		userToInsert.ID, 
+		userToInsert.Email, 
+		userToInsert.Name, 
+		userToInsert.IsPaidUser,
+	)
+	
 	return &user, nil
 }
 
