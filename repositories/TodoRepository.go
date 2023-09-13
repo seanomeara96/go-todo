@@ -89,3 +89,25 @@ func (r *Repository) DeleteTodo(todoID int) error {
 	_, err = stmt.Exec(todoID)
 	return err
 }
+
+func (r *Repository) DeleteAllTodosByUserID(userID) error {
+	stmt, err := r.db.Prepare("DELETE FROM todos WHERE user_id = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(userID)
+	return err
+}
+
+func(r *Repository) DeleteAllTodosByUserIDAndStatus(userId string, IsComplete bool) error {
+	stmt, err := r.db.Prepare("DELETE FROM todos WHERE user_id = ? AND is_complete = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err := stmt.Exec(userID, IsComplete)
+	return err
+}
