@@ -32,3 +32,14 @@ func GetUserFromSession(s *sessions.Session) *models.User {
 	}
 	return &user
 }
+
+
+func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
+	// Set cache-control headers to prevent caching
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Redirect the user to a new URL
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}

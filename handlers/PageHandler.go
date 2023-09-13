@@ -14,15 +14,7 @@ import (
 	"github.com/stripe/stripe-go/v75/webhook"
 )
 
-func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
-	// Set cache-control headers to prevent caching
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
 
-	// Redirect the user to a new URL
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
 
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
