@@ -6,12 +6,19 @@ import (
 )
 
 func (s *Service) Create(userID, description string) (*models.Todo, error) {
-	todo := models.NewTodo(userID, description)
-	id, err := s.repo.CreateTodo(&todo)
+	if description == "" {
+		return nil, fmt.Errorf("cannot supply an empty description")
+	}
+
+	sanitizedDescription := html.EscapeString(description)
+
+	todo := models.NewTodo(userID, sanitizedDescription)
+	lastInsertedTodoID, err := s.repo.CreateTodo(&todo)
 	if err != nil {
 		return nil, err
 	}
-	todo.ID = id
+
+	todo.ID = lastInsertedTodoID
 	return &todo, nil
 }
 
@@ -19,7 +26,7 @@ func (s *Service) GetUserTodoList(userID string) ([]*models.Todo, error) {
 	return s.repo.GetAllTodosByUserID(userID)
 }
 
-func (s *Service) GetByID(ID int) (*models.Todo, error) {
+func (s *Service) GetTodoByID(ID int) (*models.Todo, error) {
 	return s.repo.GetTodoByID(ID)
 }
 
@@ -29,7 +36,7 @@ func (s *Service) Remove(ID int) error {
 	return s.repo.DeleteTodo(ID)
 }
 
-func (s *Service) UpdateStatus(userID string, todoID int) (*models.Todo, error) {
+func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, error) {
 	todo, err := s.repo.GetTodoByID(todoID)
 	if err != nil {
 		return nil, err
@@ -54,5 +61,4 @@ func (s *Service) UpdateStatus(userID string, todoID int) (*models.Todo, error) 
 	}
 
 	return todo, nil
-
 }
