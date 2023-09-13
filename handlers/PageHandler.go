@@ -115,8 +115,8 @@ func (h *Handler) Success(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	user := GetUserFromSession(userSession)
 
+	user := GetUserFromSession(userSession)
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
@@ -124,13 +124,18 @@ func (h *Handler) Success(w http.ResponseWriter, r *http.Request) {
 
 	checkoutSessionID := r.URL.Query().Get("session_id")
 
-	stripe.Key = os.Getenv("STRIPE_API_KEY")
+	stripeKey := os.Getenv("STRIPE_API_KEY")
+	if stripeKey == "" {
+		http.Error(w, "no stripe api key", http.StatusInternalServerError)
+		return
+	}
 
-	s, _ := session.Get(
-		checkoutSessionID,
-		nil,
-	)
+	stripe.Key = stripeKey
 
+	s, _ := session.Get(checkoutSessionID, nil)
+	// handle error ? 
+
+	// get user from db
 	user, err = h.service.GetUserByEmail(s.CustomerEmail)
 	if err != nil {
 		http.Error(w, "could not find user", http.StatusInternalServerError)
@@ -169,7 +174,6 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := GetUserFromSession(session)
-
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
@@ -187,21 +191,19 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
-
-	sess, err := h.store.Get(r, "user-session")
+	userSession, err := h.store.Get(r, "user-session")
 	if err != nil {
 		http.Error(w, "could not retrieve user session", http.StatusInternalServerError)
 		return
 	}
 
-	user := GetUserFromSession(sess)
+	user := GetUserFromSession(userSession)
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
 	}
 
 	stripeKey := os.Getenv("STRIPE_API_KEY")
-
 	if stripeKey == "" {
 		http.Error(w, "no stripe api key", http.StatusInternalServerError)
 		return
@@ -228,6 +230,7 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 	}
 
 	s, _ := session.New(params)
+	// handle error?
 
 	// Then redirect to the URL on the Checkout Session
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
@@ -253,6 +256,10 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	if stripeWebhookSecret == "" {
+		http.Error(w, "could not find stripe webhook secret in env")
+		return
+	}
 
 	event, err := webhook.ConstructEvent(b, r.Header.Get("Stripe-Signature"), stripeWebhookSecret)
 	if err != nil {
