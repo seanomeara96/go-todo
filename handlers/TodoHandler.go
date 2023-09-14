@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"go-todo/models"
 	"go-todo/renderer"
 	"net/http"
 	"strconv"
@@ -8,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo)(bool, error){
+func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, error) {
 	userIsPaidUser, err := h.service.UserIsPaidUser(user.ID)
 	if err != nil {
 		return false, err
@@ -39,7 +40,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.service.Create(user.ID, r.FormValue("description"))
+	_, err = h.service.CreateTodo(user.ID, r.FormValue("description"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -82,7 +83,7 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get user from database
-	user,err := h.service.GetUserByID(user.id)
+	user, err = h.service.GetUserByID(user.ID)
 	if err != nil {
 		http.Error(w, "could not find user", http.StatusInternalServerError)
 		return
@@ -97,7 +98,7 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := h.service.GetByID(todoID)
+	todo, err := h.service.GetTodoByID(todoID)
 	if err != nil {
 		http.Error(w, "could not get todo", http.StatusInternalServerError)
 		return
@@ -107,9 +108,9 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 	if userIsNotAuthor {
 		http.Error(w, "not authorized", http.StatusBadRequest)
 		return
-	} 
-	
-	err := h.service.Remove(todo.ID)
+	}
+
+	err = h.service.DeleteTodo(todo.ID)
 	if err != nil {
 		http.Error(w, "could not remove todo", http.StatusInternalServerError)
 		return
@@ -151,7 +152,7 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.GetUserByID(user.ID)
+	user, err = h.service.GetUserByID(user.ID)
 	if err != nil {
 		http.Error(w, "trouble finding that user", http.StatusInternalServerError)
 		return
@@ -165,7 +166,7 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := h.service.UpdateStatus(user.ID, todoID)
+	todo, err := h.service.UpdateTodoStatus(user.ID, todoID)
 	if err != nil {
 		http.Error(w, "could not update todo", http.StatusInternalServerError)
 		return
@@ -181,6 +182,6 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not render todo", http.StatusInternalServerError)
 		return
 	}
-	
-	w.Write(todoBytes)	
+
+	w.Write(todoBytes)
 }

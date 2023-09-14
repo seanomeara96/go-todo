@@ -1,15 +1,17 @@
 package services
 
 import (
-	"regexp"
+	"fmt"
 	"go-todo/models"
-	
+	"html"
+	"regexp"
+
 	"github.com/google/uuid"
 )
 
 func isValidEmail(email string) bool {
-    emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-    return emailRegex.MatchString(email)
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return emailRegex.MatchString(email)
 }
 
 func (s *Service) NewUser(username, email, password string) (*models.User, error) {
@@ -35,15 +37,15 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 
 	// need to remember to hash password first
 	userToInsert := models.NewUserRecord(id, username, email, password, false)
-	err := s.repo.SaveUser(userToInsert)
+	err = s.repo.SaveUser(userToInsert)
 	if err != nil {
 		return nil, err
 	}
 
 	user := models.NewUser(
-		userToInsert.ID, 
-		userToInsert.Email, 
-		userToInsert.Name, 
+		userToInsert.ID,
+		userToInsert.Email,
+		userToInsert.Name,
 		userToInsert.IsPaidUser,
 	)
 
@@ -52,6 +54,10 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 
 func (s *Service) AddStripeIDToUser(userID, stripeID string) error {
 	return s.repo.AddStripeIDToUser(userID, stripeID)
+}
+
+func (s *Service) GetUserByID(userID string) (*models.User, error) {
+	return s.repo.GetUserByID(userID)
 }
 
 func (s *Service) GetUserByEmail(email string) (*models.User, error) {

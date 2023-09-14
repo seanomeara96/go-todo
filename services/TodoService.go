@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"go-todo/models"
+	"html"
 )
 
 func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
@@ -41,7 +42,7 @@ func (s *Service) DeleteAllTodosByUserID(userID string) error {
 	return s.repo.DeleteAllTodosByUserID(userID)
 }
 
-func (s *Service) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool) bool {
+func (s *Service) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool) error {
 	return s.repo.DeleteAllTodosByUserIDAndStatus(userID, IsComplete)
 }
 

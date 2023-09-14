@@ -4,6 +4,7 @@ import (
 	"go-todo/models"
 	"go-todo/renderer"
 	"go-todo/services"
+	"net/http"
 
 	"github.com/gorilla/sessions"
 	"github.com/michaeljs1990/sqlitestore"
@@ -32,7 +33,6 @@ func GetUserFromSession(s *sessions.Session) *models.User {
 	}
 	return &user
 }
-
 
 func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 	// Set cache-control headers to prevent caching

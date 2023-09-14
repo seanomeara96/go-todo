@@ -14,8 +14,6 @@ import (
 	"github.com/stripe/stripe-go/v75/webhook"
 )
 
-
-
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
@@ -133,7 +131,7 @@ func (h *Handler) Success(w http.ResponseWriter, r *http.Request) {
 	stripe.Key = stripeKey
 
 	s, _ := session.Get(checkoutSessionID, nil)
-	// handle error ? 
+	// handle error ?
 
 	// get user from db
 	user, err = h.service.GetUserByEmail(s.CustomerEmail)
@@ -237,7 +235,6 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method != http.MethodPost {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
@@ -257,7 +254,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	if stripeWebhookSecret == "" {
-		http.Error(w, "could not find stripe webhook secret in env")
+		http.Error(w, "could not find stripe webhook secret in env", http.StatusInternalServerError)
 		return
 	}
 

@@ -101,13 +101,13 @@ func (r *Repository) DeleteAllTodosByUserID(userID string) error {
 	return err
 }
 
-func(r *Repository) DeleteAllTodosByUserIDAndStatus(userId string, IsComplete bool) error {
+func (r *Repository) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool) error {
 	stmt, err := r.db.Prepare("DELETE FROM todos WHERE user_id = ? AND is_complete = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err := stmt.Exec(userID, IsComplete)
+	_, err = stmt.Exec(userID, IsComplete)
 	return err
 }

@@ -51,6 +51,24 @@ func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
+func (r *Repository) UserEmailExists(email string) (bool, error) {
+	stmt, err := r.db.Prepare(`SELECT email FROM users WHERE email = ?`)
+	if err != nil {
+		return false, err
+	}
+	defer stmt.Close()
+
+	var matchingEmail string
+	err = stmt.QueryRow(email).Scan(&matchingEmail)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (r *Repository) AddStripeIDToUser(userID, stripeID string) error {
 	stmt, err := r.db.Prepare(`UPDATE users SET customer_stripe_id = ? WHERE id = ?`)
 	if err != nil {
