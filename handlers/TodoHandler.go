@@ -36,7 +36,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromSession(session)
 
 	if user == nil {
-		http.Error(w, "Usermust be logged in", http.StatusBadRequest)
+		http.Error(w, "Usermust be logged in", http.StatusForbidden)
 		return
 	}
 
@@ -77,8 +77,8 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := GetUserFromSession(session)
-	if user != nil {
-		noCacheRedirect(w, r)
+	if user == nil {
+		http.Error(w, "user must be logged in", http.StatusForbidden)
 		return
 	}
 
@@ -147,8 +147,8 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 	user := GetUserFromSession(session)
 
-	if user != nil {
-		noCacheRedirect(w, r)
+	if user == nil {
+		http.Error(w, "user must be logged in", http.StatusForbidden)
 		return
 	}
 
