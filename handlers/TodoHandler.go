@@ -8,6 +8,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo)(bool, error){
+	userIsPaidUser, err := h.service.UserIsPaidUser(user.ID)
+	if err != nil {
+		return false, err
+	}
+	return (!userIsPaidUser && len(list) < 10) || userIsPaidUser, nil
+}
+
 func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -68,57 +76,64 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 
 	user := GetUserFromSession(session)
 	if user != nil {
-		vars := mux.Vars(r)
-		todoID := vars["id"]
-		id, err := strconv.Atoi(todoID)
-		if err != nil {
-			http.Error(w, "path does not contain valid id", http.StatusBadRequest)
-			return
-		}
-
-		todo, err := h.service.GetByID(id)
-		if err != nil {
-			http.Error(w, "could not get todo", http.StatusInternalServerError)
-			return
-		}
-
-		userIsAuthor := user.ID == todo.UserID
-		if userIsAuthor {
-			err := h.service.Remove(todo.ID)
-			if err != nil {
-				http.Error(w, "could not remove todo", http.StatusInternalServerError)
-				return
-			}
-			// TODO this is duplicate code
-			list, err := h.service.GetUserTodoList(user.ID)
-			if err != nil {
-				http.Error(w, "something went wrong while fetching todos", http.StatusInternalServerError)
-				return
-			}
-
-			userIsPayedUser, err := h.service.UserIsPaidUser(user.ID)
-			if err != nil {
-				http.Error(w, "error  determingin user paymnet status", http.StatusInternalServerError)
-				return
-			}
-			canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
-
-			props := renderer.NewTodoListProps(list, canCreateNewTodo)
-			todoListBytes, err := h.renderer.TodoList(props)
-			if err != nil {
-				http.Error(w, "could not render todo", http.StatusInternalServerError)
-				return
-			}
-			w.Write(todoListBytes)
-		} else {
-			http.Error(w, "not authorized", http.StatusBadRequest)
-			return
-		}
-
-	} else {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		noCacheRedirect(w, r)
 		return
 	}
+
+	// get user from database
+	user,err := h.service.GetUserByID(user.id)
+	if err != nil {
+		http.Error(w, "could not find user", http.StatusInternalServerError)
+		return
+	}
+
+	vars := mux.Vars(r)
+	todoIDString := vars["id"]
+
+	todoID, err := strconv.Atoi(todoIDString)
+	if err != nil {
+		http.Error(w, "path does not contain valid id", http.StatusBadRequest)
+		return
+	}
+
+	todo, err := h.service.GetByID(todoID)
+	if err != nil {
+		http.Error(w, "could not get todo", http.StatusInternalServerError)
+		return
+	}
+
+	userIsNotAuthor := user.ID != todo.UserID
+	if userIsNotAuthor {
+		http.Error(w, "not authorized", http.StatusBadRequest)
+		return
+	} 
+	
+	err := h.service.Remove(todo.ID)
+	if err != nil {
+		http.Error(w, "could not remove todo", http.StatusInternalServerError)
+		return
+	}
+
+	// TODO this is duplicate code
+	list, err := h.service.GetUserTodoList(user.ID)
+	if err != nil {
+		http.Error(w, "something went wrong while fetching todos", http.StatusInternalServerError)
+		return
+	}
+
+	userCanCreateNewTodo, err := h.userCanCreateNewTodo(user, list)
+	if err != nil {
+		http.Error(w, "error determining user payment status", http.StatusInternalServerError)
+		return
+	}
+
+	props := renderer.NewTodoListProps(list, userCanCreateNewTodo)
+	todoListBytes, err := h.renderer.TodoList(props)
+	if err != nil {
+		http.Error(w, "could not render todo", http.StatusInternalServerError)
+		return
+	}
+	w.Write(todoListBytes)
 }
 
 func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
