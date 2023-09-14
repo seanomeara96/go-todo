@@ -13,7 +13,10 @@ func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo)(b
 	if err != nil {
 		return false, err
 	}
-	return (!userIsPaidUser && len(list) < 10) || userIsPaidUser, nil
+
+	canCreateNewTodo := (!userIsPaidUser && len(list) < 10) || userIsPaidUser
+
+	return canCreateNewTodo, nil
 }
 
 func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +39,9 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	description := r.FormValue("description")
-
-	_, err = h.service.Create(user.ID, description)
+	_, err = h.service.Create(user.ID, r.FormValue("description"))
 	if err != nil {
-		http.Error(w, "something went wrong whilecreating a new todo", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -146,33 +147,40 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	user := GetUserFromSession(session)
 
 	if user != nil {
-		vars := mux.Vars(r)
-		idParam := vars["id"]
-		todoID, err := strconv.Atoi(idParam)
-		if err != nil {
-			http.Error(w, "path does not contain valid id", http.StatusBadRequest)
-			return
-		}
+		noCacheRedirect(w, r)
+		return
+	}
 
-		todo, err := h.service.UpdateStatus(user.ID, todoID)
-		if err != nil {
-			http.Error(w, "could not update todo", http.StatusInternalServerError)
-			return
-		}
+	user, err := h.service.GetUserByID(user.ID)
+	if err != nil {
+		http.Error(w, "trouble finding that user", http.StatusInternalServerError)
+		return
+	}
 
-		if todo != nil {
-			todoBytes, err := h.renderer.Todo(todo)
-			if err != nil {
-				http.Error(w, "could not render todo", http.StatusInternalServerError)
-				return
-			}
-			w.Write(todoBytes)
-			return
-		}
+	vars := mux.Vars(r)
+	idParam := vars["id"]
+	todoID, err := strconv.Atoi(idParam)
+	if err != nil {
+		http.Error(w, "path does not contain valid id", http.StatusBadRequest)
+		return
+	}
 
+	todo, err := h.service.UpdateStatus(user.ID, todoID)
+	if err != nil {
+		http.Error(w, "could not update todo", http.StatusInternalServerError)
+		return
+	}
+
+	if todo == nil {
 		http.Error(w, "service did not return a todo item", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	todoBytes, err := h.renderer.Todo(todo)
+	if err != nil {
+		http.Error(w, "could not render todo", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Write(todoBytes)	
 }
