@@ -33,7 +33,7 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 		return nil, fmt.Errorf("must supply unique email")
 	}
 
-	// need to remomber to hash password first
+	// need to remember to hash password first
 	userToInsert := models.NewUserRecord(id, username, email, password, false)
 	err := s.repo.SaveUser(userToInsert)
 	if err != nil {

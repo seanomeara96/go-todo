@@ -90,7 +90,7 @@ func (r *Repository) DeleteTodo(todoID int) error {
 	return err
 }
 
-func (r *Repository) DeleteAllTodosByUserID(userID) error {
+func (r *Repository) DeleteAllTodosByUserID(userID string) error {
 	stmt, err := r.db.Prepare("DELETE FROM todos WHERE user_id = ?")
 	if err != nil {
 		return err
