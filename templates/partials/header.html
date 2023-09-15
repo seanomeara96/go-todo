@@ -18,4 +18,14 @@
     ></script>
   </head>
   <body>
+  <header>
+    {{ if.User }}
+      <a href="/logout"><button>Log Out</button></a>
+      {{ if not (eq .User.IsPaidUser true) }}
+        <a href="/upgrade"><button>Upgrade</button></a>
+      {{ else }}
+        <a href="/manage-subscription">Manage Subscription</a>
+      {{end}}
+    {{ end }}
+  </header>
     {{ end }}
