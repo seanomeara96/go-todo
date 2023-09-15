@@ -34,22 +34,12 @@ func NewBasePageProps(user *models.User) BasePageProps {
 	}
 }
 
-type HomePageLoggedOutProps struct {
-	BasePageProps
-}
-
-func NewHomePageLoggedOutProps(basePageProps BasePageProps) HomePageLoggedOutProps {
-	return HomePageLoggedOutProps{
-		BasePageProps: basePageProps,
-	}
-}
-
-type HomePageLoggedInProps struct {
+type HomePageProps struct {
 	BasePageProps
 	TodoListProps TodoListProps
 }
 
-func NewHomePageLoggedInProps(basePageProps BasePageProps, todoListProps TodoListProps) HomePageLoggedInProps {
+func NewHomePageProps(basePageProps BasePageProps, todoListProps TodoListProps) HomePageLoggedInProps {
 	return HomePageLoggedInProps{
 		BasePageProps: basePageProps,
 		TodoListProps: todoListProps,

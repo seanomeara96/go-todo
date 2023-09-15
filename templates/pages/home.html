@@ -1,0 +1,9 @@
+{{ define "home" }}
+    {{ template "header" .}}
+        {{ if .User }}
+            {{ template "logged-in" . }} 
+        {{ else }}
+            {{template "login-form" . }} 
+        {{ end }}
+    {{ template "footer" .}}
+{{ end }}

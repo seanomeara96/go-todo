@@ -21,12 +21,8 @@ func (r *Renderer) render(templateName string, data any) ([]byte, error) {
 	return buffer.Bytes(), err
 }
 
-func (r *Renderer) HomePageLoggedIn(p HomePageLoggedInProps) ([]byte, error) {
-	return r.render("home-logged-in", p)
-}
-
-func (r *Renderer) HomePageLoggedOut(p HomePageLoggedOutProps) ([]byte, error) {
-	return r.render("home-logged-out", p)
+func (r *Renderer) HomePage(p HomePageLoggedInProps) ([]byte, error) {
+	return r.render("home", p)
 }
 
 func (r *Renderer) Signup(p SignupPageProps) ([]byte, error) {
