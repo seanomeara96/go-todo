@@ -22,30 +22,36 @@ func (r *Repository) SaveUser(user models.UserRecord) error {
 }
 
 func (r *Repository) GetUserByID(ID string) (*models.User, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user FROM users WHERE id = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user, customer_stripe_id FROM users WHERE id = ?`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	user := models.User{}
-	err = stmt.QueryRow(ID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser)
+	err = stmt.QueryRow(ID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser, &user.StripeCustomerID)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &user, nil
 }
 
 func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user FROM users WHERE email = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user, customer_stripe_id FROM users WHERE email = ?`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	user := models.User{}
-	err = stmt.QueryRow(email).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser)
+	err = stmt.QueryRow(email).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser, &user.StripeCustomerID)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &user, nil
@@ -67,6 +73,25 @@ func (r *Repository) UserEmailExists(email string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (r *Repository) GetUserByStripeID(customerStripeID string) (*models.User, error) {
+	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user, customer_stripe_id FROM users WHERE customer_stripe_id = ?`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	user := models.User{}
+	err = stmt.QueryRow(customerStripeID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser, &user.StripeCustomerID)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+
 }
 
 func (r *Repository) AddStripeIDToUser(userID, stripeID string) error {

@@ -1,37 +1,38 @@
 package handlers
 
 import (
-	"go-todo/models"
-	"go-todo/renderer"
-	"go-todo/services"
-	"net/http"
+	"encoding/json"
 	"fmt"
 	"go-todo/models"
 	"go-todo/renderer"
+	"go-todo/services"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/stripe/stripe-go/v75"
-	"github.com/stripe/stripe-go/v75/checkout/session"
+	billingportalsession "github.com/stripe/stripe-go/v75/billingportal/session"
+	checkoutsession "github.com/stripe/stripe-go/v75/checkout/session"
 	"github.com/stripe/stripe-go/v75/webhook"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/michaeljs1990/sqlitestore"
 )
 
 type Handler struct {
-	service  *services.Service
-	store    *sqlitestore.SqliteStore
-	render *renderer.Renderer
+	service *services.Service
+	store   *sqlitestore.SqliteStore
+	render  *renderer.Renderer
 }
 
 func NewHandler(service *services.Service, store *sqlitestore.SqliteStore, renderer *renderer.Renderer) *Handler {
 	return &Handler{
-		service:  service,
-		store:    store,
-		renderer: renderer,
+		service: service,
+		store:   store,
+		render:  renderer,
 	}
 }
 
@@ -54,7 +55,6 @@ func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 	// Redirect the user to a new URL
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
-
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
@@ -111,7 +111,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
-
 func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
@@ -121,7 +120,7 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	user := getUserFromSession(session)
 	canCreateNewTodo := false
-	var list []*models.Todo	
+	var list []*models.Todo
 	if user != nil {
 		list, err = h.service.GetUserTodoList(user.ID)
 		if err != nil {
@@ -140,7 +139,7 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	basePageProps := renderer.NewBasePageProps(user)
 	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
-	homePageProps := renderer.NewHomePageProps(basePageProps)
+	homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps)
 	bytes, err := h.render.HomePage(homePageProps)
 	if err != nil {
 		http.Error(w, "could not render home-logged-out", http.StatusInternalServerError)
@@ -220,7 +219,7 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 
 	stripe.Key = stripeKey
 
-	s, _ := session.Get(checkoutSessionID, nil)
+	s, _ := checkoutsession.Get(checkoutSessionID, nil)
 	// handle error ?
 
 	// get user from db
@@ -317,17 +316,15 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 		},
 	}
 
-	s, _ := session.New(params)
+	s, _ := checkoutsession.New(params)
 	// handle error?
 
 	// Then redirect to the URL on the Checkout Session
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
 }
 
-
-
-func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Request){
-	userSession, _ := h.store.Get("user-session")
+func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Request) {
+	userSession, _ := h.store.Get(r, "user-session")
 
 	user := getUserFromSession(userSession)
 	if user == nil {
@@ -346,12 +343,12 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 	stripe.Key = stripeKey
 
 	params := &stripe.BillingPortalSessionParams{
-		Customer: stripe.String(user.StripeCustomerID),
+		Customer:  stripe.String(user.StripeCustomerID),
 		ReturnURL: stripe.String("http://localhost:3000/"),
-	  };
-	  
-	result, _ := session.New(params);
-	
+	}
+
+	s, _ := billingportalsession.New(params)
+
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
 }
 
@@ -388,46 +385,106 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	switch event.Type {
 	case "checkout.session.completed":
-		fmt.Println("checkout session completed")
+		log.Println("checkout session completed")
 	case "invoice.paid":
-		fmt.Println("invoice paid")
-		checkoutID := event.Data.Object["id"]
-		customerID := event.Data.Object["customer"]
-		customerEmail := event.Data.Object["customer_email"]
+		log.Println("Handling invoice.paid event for payments.")
+		var invoice stripe.Invoice
+		err := json.Unmarshal(event.Data.Raw, &invoice)
+		if err != nil {
+			log.Printf("Failed to parse invoice paid webhook")
+			return
+		}
 
-		fmt.Println(checkoutID, customerID, customerEmail)
+		customerID := invoice.Customer.ID
+		customerEmail := invoice.Customer.Email
+
+		user, err := h.service.GetUserByEmail(customerEmail)
+		if err != nil {
+			log.Println("error finding customer by customer email")
+			return
+		}
+
+		if user == nil {
+			log.Println("no customer by that email address")
+			return
+		}
+
+		if user.StripeCustomerID == "" {
+			err = h.service.AddStripeIDToUser(user.ID, customerID)
+			if err != nil {
+				//urgent will need a notification for thid
+				log.Printf("customer with ID of %s paid invoice but customer ID could not be addedto user", customerID)
+			}
+		}
+
+		err = h.service.UpdateUserPaymentStatus(user.ID, true)
+		if err != nil {
+			log.Printf("customer %s paid their invoice", customerID)
+		}
+
 	case "invoice.payment_failed":
+		log.Println("Handling invoice.payment_failed event for failed payments.")
+		customerStripeID := event.Data.Object["customer"].(string)
+		if customerStripeID == "" {
+			log.Println("cant get customer id from webhook event data")
+			return
+		}
+		log.Printf("invoice payment failed for customer ID: %s \n", customerStripeID)
+		user, err := h.service.GetUserByStripeID(customerStripeID)
+		if err != nil {
+			log.Println("error searching for customer by stripe ID")
+			return
+		}
+		if user == nil {
+			log.Println("could not find matching user for that stripe ID")
+			return
+		}
+		err = h.service.UpdateUserPaymentStatus(user.ID, false)
+		if err != nil {
+			log.Println("could not update customer payment status")
+			return
+		}
+		log.Printf("downgraded plan for user: %s", user.Email)
 		// deactivate user premium status
 	case "customer.subscription.updated":
-        // Check subscription.items.data[0].price attribute and grant/revoke access accordingly.
-        fmt.Println("Handling customer.subscription.updated event for price changes.")
-    case "customer.subscription.deleted":
-        // Revoke customer's access to the product.
-        fmt.Println("Handling customer.subscription.deleted event for subscription cancellations.")
-    case "customer.subscription.paused":
-        // Revoke customer's access until subscription resumes.
-        fmt.Println("Handling customer.subscription.paused event for paused subscriptions.")
-    case "customer.subscription.resumed":
-        // Grant customer access when subscription resumes.
-        fmt.Println("Handling customer.subscription.resumed event for resumed subscriptions.")
-    case "payment_method.attached":
-        // Handle payment method attachment.
-        fmt.Println("Handling payment_method.attached event for payment method attachment.")
-    case "payment_method.detached":
-        // Handle payment method detachment.
-        fmt.Println("Handling payment_method.detached event for payment method detachment.")
-    case "customer.updated":
-        // Check and update default payment method information.
-        fmt.Println("Handling customer.updated event for default payment method updates.")
-    case "customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated":
-        // Handle tax ID related events.
-        fmt.Println("Handling tax ID related event:", event)
-    case "billing_portal.configuration.created", "billing_portal.configuration.updated":
-        // Handle billing portal configuration events.
-        fmt.Println("Handling billing portal configuration event:", event)
-    case "billing_portal.session.created":
-        // Handle billing portal session creation.
-        fmt.Println("Handling billing portal session created event.")
+		// cancel plan in customer billing portal triggers this event first
+		log.Println(event.Data.Object)
+		// Check subscription.items.data[0].price attribute and grant/revoke access accordingly.
+		log.Println("Handling customer.subscription.updated event for price changes.")
+	case "customer.subscription.deleted":
+		// after the remaining days remining on the cancelled plan have elapsed, i assume this webhook gets called
+		customerID := event.Data.Object["customer"].(string)
+		if customerID == "" {
+			log.Printf("cant get customer if from webhook event data")
+			return
+		}
+		h.service.UpdateUserPaymentStatus(customerID, false)
+		// Revoke customer's access to the product.
+		log.Println("Handling customer.subscription.deleted event for subscription cancellations.")
+	case "customer.subscription.paused":
+		// Revoke customer's access until subscription resumes.
+		log.Println("Handling customer.subscription.paused event for paused subscriptions.")
+	case "customer.subscription.resumed":
+		// Grant customer access when subscription resumes.
+		log.Println("Handling customer.subscription.resumed event for resumed subscriptions.")
+	case "payment_method.attached":
+		// Handle payment method attachment.
+		log.Println("Handling payment_method.attached event for payment method attachment.")
+	case "payment_method.detached":
+		// Handle payment method detachment.
+		log.Println("Handling payment_method.detached event for payment method detachment.")
+	case "customer.updated":
+		// Check and update default payment method information.
+		log.Println("Handling customer.updated event for default payment method updates.")
+	case "customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated":
+		// Handle tax ID related events.
+		log.Println("Handling tax ID related event:", event)
+	case "billing_portal.configuration.created", "billing_portal.configuration.updated":
+		// Handle billing portal configuration events.
+		log.Println("Handling billing portal configuration event:", event)
+	case "billing_portal.session.created":
+		// Handle billing portal session creation.
+		log.Println("Handling billing portal session created event.")
 	default:
 		// something else happened
 	}
@@ -438,9 +495,8 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		checkout.session.completed	Sent when a customer clicks the Pay or Subscribe button in Checkout, informing you of a new purchase.
 		invoice.paid	Sent each billing interval when a payment succeeds.
 		invoice.payment_failed	Sent each billing interval if there is an issue with your customer’s payment method.*/
-
+	w.WriteHeader(http.StatusOK)
 }
-
 
 func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, error) {
 	userIsPaidUser, err := h.service.UserIsPaidUser(user.ID)
@@ -618,8 +674,6 @@ func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(todoBytes)
 }
-
-
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()

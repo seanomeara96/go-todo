@@ -37,3 +37,22 @@ func TestEmailExists(t *testing.T) {
 		t.Error("should have been false")
 	}
 }
+
+func TestGetUserByStripeID(t *testing.T) {
+	db, err := sql.Open("sqlite3", "../main.db")
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	repo := repositories.NewRepository(db)
+
+	user, err := repo.GetUserByStripeID("cus_OctA19z8oZnMu5")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if user == nil {
+		t.Error("there should be an associated user")
+	}
+}

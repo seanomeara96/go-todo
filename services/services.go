@@ -1,6 +1,14 @@
 package services
 
-import "go-todo/repositories"
+import (
+	"fmt"
+	"go-todo/models"
+	"go-todo/repositories"
+	"html"
+	"regexp"
+
+	"github.com/google/uuid"
+)
 
 type Service struct {
 	repo *repositories.Repository
@@ -35,7 +43,6 @@ func (s *Service) Login(email string, password string) (*models.User, error) {
 
 	return &user, nil
 }
-
 
 func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 	if description == "" {
@@ -104,7 +111,6 @@ func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, err
 	return todo, nil
 }
 
-
 func isValidEmail(email string) bool {
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	return emailRegex.MatchString(email)
@@ -158,6 +164,10 @@ func (s *Service) GetUserByID(userID string) (*models.User, error) {
 
 func (s *Service) GetUserByEmail(email string) (*models.User, error) {
 	return s.repo.GetUserByEmail(email)
+}
+
+func (s *Service) GetUserByStripeID(customerStripeID string) (*models.User, error) {
+	return s.repo.GetUserByStripeID(customerStripeID)
 }
 
 func (s *Service) UpdateUserPaymentStatus(userID string, isPaidUser bool) error {

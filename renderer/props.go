@@ -39,8 +39,8 @@ type HomePageProps struct {
 	TodoListProps TodoListProps
 }
 
-func NewHomePageProps(basePageProps BasePageProps, todoListProps TodoListProps) HomePageLoggedInProps {
-	return HomePageLoggedInProps{
+func NewHomePageProps(basePageProps BasePageProps, todoListProps TodoListProps) HomePageProps {
+	return HomePageProps{
 		BasePageProps: basePageProps,
 		TodoListProps: todoListProps,
 	}

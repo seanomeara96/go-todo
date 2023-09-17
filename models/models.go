@@ -15,10 +15,11 @@ func NewTodo(userID string, description string) Todo {
 }
 
 type User struct {
-	ID         string
-	Name       string
-	Email      string
-	IsPaidUser bool
+	ID               string
+	Name             string
+	Email            string
+	IsPaidUser       bool
+	StripeCustomerID string
 }
 
 func NewUser(ID string, name string, email string, isPaidUser bool) User {

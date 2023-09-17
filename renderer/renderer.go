@@ -21,7 +21,7 @@ func (r *Renderer) render(templateName string, data any) ([]byte, error) {
 	return buffer.Bytes(), err
 }
 
-func (r *Renderer) HomePage(p HomePageLoggedInProps) ([]byte, error) {
+func (r *Renderer) HomePage(p HomePageProps) ([]byte, error) {
 	return r.render("home", p)
 }
 
