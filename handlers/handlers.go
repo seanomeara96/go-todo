@@ -383,6 +383,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO add writeheaders before the returns in this switch statement
 	switch event.Type {
 	case "checkout.session.completed":
 		log.Println("checkout session completed")
