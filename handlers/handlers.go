@@ -397,7 +397,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Printf("Customer (%d) completed checkout", checkoutSession.Customer.Email)
+		log.Printf("Customer (%s) completed checkout", checkoutSession.Customer.Email)
 		w.WriteHeader(http.StatusOK)
 		return
 
@@ -426,11 +426,11 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		userDoesNotAlreadyHaveAStripeID = user.StripeCustomerID == ""
-		if  userDoesNotAlreadyHaveAStripeID {
+		userDoesNotAlreadyHaveAStripeID := user.StripeCustomerID == ""
+		if userDoesNotAlreadyHaveAStripeID {
 			err = h.service.AddStripeIDToUser(user.ID, customerID)
 			if err != nil {
-				//urgent will need a notification for thid
+				// URGENT TODO will need a notification for this
 				log.Printf("customer with ID of %s paid invoice but customer ID could not be addedto user", customerID)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -450,7 +450,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	case "invoice.payment_failed":
 		log.Println("Handling invoice.payment_failed event for failed payments.")
-		
+
 		var invoice stripe.Invoice
 
 		err := json.Unmarshal(event.Data.Raw, &invoice)
@@ -478,15 +478,15 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		if user == nil {
 			log.Println("could not find matching user for that stripe ID")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		
+
 		// deactivate user premium status
 		err = h.service.UpdateUserPaymentStatus(user.ID, false)
 		if err != nil {
 			log.Println("could not update customer payment status")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -505,20 +505,20 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			log.Println("Failed to parse customer.subscription.updated webhook")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		user, err = h.service.GetUserByStripeID(customer.ID)
+		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
 			log.Println("Error trying to get customer by stripe ID")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
 			log.Println("No user by that stripe ID")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -539,7 +539,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		
+
 		customerID := customer.ID
 		if customerID == "" {
 			log.Printf("cant get customer if from webhook event data")
@@ -550,7 +550,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = h.service.UpdateUserPaymentStatus(customerID, false)
 		if err != nil {
 			log.Printf("Could not set is_paid_user to false, subscription deleted")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -570,16 +570,16 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.service.GetUserByStripeID(customer.ID)
+		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
-			log.Prinln("Error getting customer by stripe ID")
-			w.WriteHeader(http.StatusInternalServerError
+			log.Println("Error getting customer by stripe ID")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
 			log.Printf("no user exists with the ID of %s", customer.ID)
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -590,26 +590,26 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	case "customer.subscription.resumed":
 		// Grant customer access when subscription resumes.
 		log.Println("Handling customer.subscription.resumed event for resumed subscriptions.")
-		
+
 		var customer stripe.Customer
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			log.Println("Error unmarshalling customer.subscription.resumed webhook")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		err = h.service.GetUserByStripeID(customer.ID)
+		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
-			log.Prinln("Error getting customer by stripe ID")
-			w.WriteHeader(http.StatusInternalServerError
+			log.Println("Error getting customer by stripe ID")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
 			log.Printf("no user exists with the ID of %s", customer.ID)
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -621,12 +621,12 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		// Handle payment method attachment.
 		log.Println("Handling payment_method.attached event for payment method attachment.")
 
-		var paymentMethod stripe.paymentMethod
+		var paymentMethod stripe.PaymentMethod
 
 		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
 		if err != nil {
 			log.Println("Error unmarshalling payment_method.attached webhook")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -638,7 +638,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		// Handle payment method detachment.
 		log.Println("Handling payment_method.detached event for payment method detachment.")
 
-		var paymentMethod stripe.paymentMethod
+		var paymentMethod stripe.PaymentMethod
 
 		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
 		if err != nil {
@@ -709,7 +709,6 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		checkout.session.completed	Sent when a customer clicks the Pay or Subscribe button in Checkout, informing you of a new purchase.
 		invoice.paid	Sent each billing interval when a payment succeeds.
 		invoice.payment_failed	Sent each billing interval if there is an issue with your customer’s payment method.*/
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, error) {
