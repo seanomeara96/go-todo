@@ -386,7 +386,21 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	// TODO add writeheaders before the returns in this switch statement
 	switch event.Type {
 	case "checkout.session.completed":
-		log.Println("checkout session completed")
+		log.Println("Handling checkout.session.completed event for completed checkouts.")
+
+		var checkoutSession stripe.CheckoutSession
+
+		err = json.Unmarshal(event.Data.Raw, &checkoutSession)
+		if err != nil {
+			log.Println("Error unmarshalling checkout.session.completed webhook")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Customer (%d) completed checkout", checkoutSession.Customer.Email)
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "invoice.paid":
 		log.Println("Handling invoice.paid event for payments.")
 		var invoice stripe.Invoice
@@ -402,84 +416,264 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		user, err := h.service.GetUserByEmail(customerEmail)
 		if err != nil {
 			log.Println("error finding customer by customer email")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
 			log.Println("no customer by that email address")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		if user.StripeCustomerID == "" {
+		userDoesNotAlreadyHaveAStripeID = user.StripeCustomerID == ""
+		if  userDoesNotAlreadyHaveAStripeID {
 			err = h.service.AddStripeIDToUser(user.ID, customerID)
 			if err != nil {
 				//urgent will need a notification for thid
 				log.Printf("customer with ID of %s paid invoice but customer ID could not be addedto user", customerID)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 		}
+		// TODO find a way to handle this better
 
 		err = h.service.UpdateUserPaymentStatus(user.ID, true)
 		if err != nil {
-			log.Printf("customer %s paid their invoice", customerID)
+			log.Printf("customer %s paid their invoice but could not update the user record", customerID)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+
+		w.WriteHeader(http.StatusOK)
+		return
 
 	case "invoice.payment_failed":
 		log.Println("Handling invoice.payment_failed event for failed payments.")
-		customerStripeID := event.Data.Object["customer"].(string)
-		if customerStripeID == "" {
-			log.Println("cant get customer id from webhook event data")
+		
+		var invoice stripe.Invoice
+
+		err := json.Unmarshal(event.Data.Raw, &invoice)
+		if err != nil {
+			log.Printf("Failed to unmarshal invoice.payment_failed webhook")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		customerStripeID := invoice.Customer.ID
+		if customerStripeID == "" {
+			log.Println("cant get customer id from invoice.payment_failed webhook data")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
 		log.Printf("invoice payment failed for customer ID: %s \n", customerStripeID)
+
 		user, err := h.service.GetUserByStripeID(customerStripeID)
 		if err != nil {
 			log.Println("error searching for customer by stripe ID")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
 		if user == nil {
 			log.Println("could not find matching user for that stripe ID")
+			w.WriteHeader(http.StatusInternalServerError
 			return
 		}
+		
+		// deactivate user premium status
 		err = h.service.UpdateUserPaymentStatus(user.ID, false)
 		if err != nil {
 			log.Println("could not update customer payment status")
+			w.WriteHeader(http.StatusInternalServerError
 			return
 		}
+
 		log.Printf("downgraded plan for user: %s", user.Email)
-		// deactivate user premium status
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "customer.subscription.updated":
-		// cancel plan in customer billing portal triggers this event first
-		log.Println(event.Data.Object)
 		// Check subscription.items.data[0].price attribute and grant/revoke access accordingly.
 		log.Println("Handling customer.subscription.updated event for price changes.")
-	case "customer.subscription.deleted":
-		// after the remaining days remining on the cancelled plan have elapsed, i assume this webhook gets called
-		customerID := event.Data.Object["customer"].(string)
-		if customerID == "" {
-			log.Printf("cant get customer if from webhook event data")
+		// cancel plan in customer billing portal triggers this event first
+		log.Println(event.Data.Object)
+
+		var customer stripe.Customer
+
+		err = json.Unmarshal(event.Data.Raw, &customer)
+		if err != nil {
+			log.Println("Failed to parse customer.subscription.updated webhook")
+			w.WriteHeader(http.StatusInternalServerError
 			return
 		}
-		h.service.UpdateUserPaymentStatus(customerID, false)
+
+		user, err = h.service.GetUserByStripeID(customer.ID)
+		if err != nil {
+			log.Println("Error trying to get customer by stripe ID")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		if user == nil {
+			log.Println("No user by that stripe ID")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		log.Printf("Customer: %s updated subscription", customer.Email)
+		w.WriteHeader(http.StatusOK)
+		return
+
+	case "customer.subscription.deleted":
+		// after the remaining days remining on the cancelled plan have elapsed, i assume this webhook gets called
 		// Revoke customer's access to the product.
 		log.Println("Handling customer.subscription.deleted event for subscription cancellations.")
+
+		var customer stripe.Customer
+
+		err = json.Unmarshal(event.Data.Raw, &customer)
+		if err != nil {
+			log.Println("Could not unmarshal event data to customer struct")
+			return
+		}
+		
+		customerID := customer.ID
+		if customerID == "" {
+			log.Printf("cant get customer if from webhook event data")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		err = h.service.UpdateUserPaymentStatus(customerID, false)
+		if err != nil {
+			log.Printf("Could not set is_paid_user to false, subscription deleted")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "customer.subscription.paused":
 		// Revoke customer's access until subscription resumes.
 		log.Println("Handling customer.subscription.paused event for paused subscriptions.")
+
+		var customer stripe.Customer
+
+		err = json.Unmarshal(event.Data.Raw, &customer)
+		if err != nil {
+			log.Println("Error unmarshalling customer.subscription.paused webhook")
+			return
+		}
+
+		err = h.service.GetUserByStripeID(customer.ID)
+		if err != nil {
+			log.Prinln("Error getting customer by stripe ID")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		if user == nil {
+			log.Printf("no user exists with the ID of %s", customer.ID)
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		log.Printf("User (%s) paused their subscription", user.Email)
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "customer.subscription.resumed":
 		// Grant customer access when subscription resumes.
 		log.Println("Handling customer.subscription.resumed event for resumed subscriptions.")
+		
+		var customer stripe.Customer
+
+		err = json.Unmarshal(event.Data.Raw, &customer)
+		if err != nil {
+			log.Println("Error unmarshalling customer.subscription.resumed webhook")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		err = h.service.GetUserByStripeID(customer.ID)
+		if err != nil {
+			log.Prinln("Error getting customer by stripe ID")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		if user == nil {
+			log.Printf("no user exists with the ID of %s", customer.ID)
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		log.Printf("User (%s) resumed their subscription", user.Email)
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "payment_method.attached":
 		// Handle payment method attachment.
 		log.Println("Handling payment_method.attached event for payment method attachment.")
+
+		var paymentMethod stripe.paymentMethod
+
+		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
+		if err != nil {
+			log.Println("Error unmarshalling payment_method.attached webhook")
+			w.WriteHeader(http.StatusInternalServerError
+			return
+		}
+
+		log.Printf("Customer (%s) updated their payment method", paymentMethod.Customer.Email)
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "payment_method.detached":
 		// Handle payment method detachment.
 		log.Println("Handling payment_method.detached event for payment method detachment.")
+
+		var paymentMethod stripe.paymentMethod
+
+		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
+		if err != nil {
+			log.Println("Error unmarshalling payment_method.detached webhook")
+			return
+		}
+
+		log.Printf("Customer (%s) detached their payment method", paymentMethod.Customer.Email)
+
 	case "customer.updated":
 		// Check and update default payment method information.
 		log.Println("Handling customer.updated event for default payment method updates.")
+
+		var customer stripe.Customer
+
+		err = json.Unmarshal(event.Data.Raw, &customer)
+		if err != nil {
+			log.Println("Error unmarshalling customer.updated webhook")
+			return
+		}
+
+		log.Printf("Customer (%s) updated", customer.Email)
+
 	case "customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated":
 		// Handle tax ID related events.
 		log.Println("Handling tax ID related event:", event)
+
+		var customer stripe.Customer
+
+		err = json.Unmarshal(event.Data.Raw, &customer)
+		if err != nil {
+			log.Println("Error unmarshalling customer.tax_id.created webhook")
+			return
+		}
+
+		log.Printf("Customer (%s) added tax ID", customer.Email)
+
 	case "billing_portal.configuration.created", "billing_portal.configuration.updated":
 		// Handle billing portal configuration events.
 		log.Println("Handling billing portal configuration event:", event)
@@ -487,6 +681,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		// Handle billing portal session creation.
 		log.Println("Handling billing portal session created event.")
 	default:
+		w.WriteHeader(http.StatusBadRequest)
 		// something else happened
 	}
 
