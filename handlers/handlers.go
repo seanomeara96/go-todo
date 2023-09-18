@@ -536,13 +536,14 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			log.Println("Could not unmarshal event data to customer struct")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		
 		customerID := customer.ID
 		if customerID == "" {
 			log.Printf("cant get customer if from webhook event data")
-			w.WriteHeader(http.StatusInternalServerError
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -565,6 +566,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			log.Println("Error unmarshalling customer.subscription.paused webhook")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -641,10 +643,13 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
 		if err != nil {
 			log.Println("Error unmarshalling payment_method.detached webhook")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		log.Printf("Customer (%s) detached their payment method", paymentMethod.Customer.Email)
+		w.WriteHeader(http.StatusOK)
+		return
 
 	case "customer.updated":
 		// Check and update default payment method information.
@@ -655,10 +660,13 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			log.Println("Error unmarshalling customer.updated webhook")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		log.Printf("Customer (%s) updated", customer.Email)
+		w.WriteHeader(http.StatusOK)
+		return
 
 	case "customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated":
 		// Handle tax ID related events.
@@ -669,19 +677,29 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			log.Println("Error unmarshalling customer.tax_id.created webhook")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		log.Printf("Customer (%s) added tax ID", customer.Email)
+		w.WriteHeader(http.StatusOK)
+		return
 
 	case "billing_portal.configuration.created", "billing_portal.configuration.updated":
 		// Handle billing portal configuration events.
 		log.Println("Handling billing portal configuration event:", event)
+		w.WriteHeader(http.StatusOK)
+		return
+
 	case "billing_portal.session.created":
 		// Handle billing portal session creation.
 		log.Println("Handling billing portal session created event.")
+		w.WriteHeader(http.StatusOK)
+		return
+
 	default:
 		w.WriteHeader(http.StatusBadRequest)
+		return
 		// something else happened
 	}
 
