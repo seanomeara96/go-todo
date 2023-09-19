@@ -20,28 +20,42 @@ func NewService(r *repositories.Repository) *Service {
 	}
 }
 
-func (s *Service) Login(email string, password string) (*models.User, error) {
+type userLoginErrors struct {
+	EmailErrors    *[]string
+	PasswordErrors *[]string
+}
+
+func (s *Service) Login(email string, password string) (*models.User, *userLoginErrors, error) {
+	var user models.User
+	var EmailErrors []string
+	var PasswordErrors []string
+
 	userRecord, err := s.repo.GetUserRecordByEmail(email)
 	if err != nil {
-		return nil, err
-	}
-
-	if userRecord != nil {
-		fmt.Println("user found", userRecord.Email)
+		return nil, nil, err
 	}
 
 	if userRecord == nil {
-		fmt.Println("user not found")
-		return nil, fmt.Errorf("user not found")
+		EmailErrors = append(EmailErrors, "Could not find user with that email")
+		userLoginErrors := userLoginErrors{
+			PasswordErrors: &PasswordErrors,
+			EmailErrors:    &EmailErrors,
+		}
+		return &user, &userLoginErrors, nil
 	}
 
 	if userRecord.Password != password {
-		return nil, fmt.Errorf("incorrect password")
+		PasswordErrors = append(PasswordErrors, "Incorrect Password")
 	}
 
-	user := models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPaidUser)
+	user = models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPaidUser)
 
-	return &user, nil
+	userLoginErrors := userLoginErrors{
+		PasswordErrors: &PasswordErrors,
+		EmailErrors:    &EmailErrors,
+	}
+
+	return &user, &userLoginErrors, nil
 }
 
 func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {

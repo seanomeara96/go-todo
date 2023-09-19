@@ -79,7 +79,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 
-	user, err = h.service.Login(email, password)
+	user, userErrors, err := h.service.Login(email, password)
 	if err != nil {
 		http.Error(w, "Something went wrong during login", http.StatusInternalServerError)
 		return
@@ -89,7 +89,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Incorrect credentials", http.StatusBadRequest)
 		return
 	}
-
+	// TODO resend user login page with user errors
 	session.Values["user"] = *user
 	session.Save(r, w)
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
