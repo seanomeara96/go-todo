@@ -20,6 +20,11 @@ func NewService(r *repositories.Repository) *Service {
 	}
 }
 
+func isValidEmail(email string) bool {
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return emailRegex.MatchString(email)
+}
+
 type userLoginErrors struct {
 	EmailErrors    []string
 	PasswordErrors []string
@@ -27,8 +32,15 @@ type userLoginErrors struct {
 
 func (s *Service) Login(email string, password string) (*models.User, *userLoginErrors, error) {
 	var user models.User
-	var EmailErrors []string
-	var PasswordErrors []string
+	userLoginErrors := userLoginErrors{
+		PasswordErrors: []string{},
+		EmailErrors:    []string{},
+	}
+
+	isValidEmail := isValidEmail(email)
+	if !isValidEmail {
+		userLoginErrors.EmailErrors = append(userLoginErrors.EmailErrors, "You've provided an invalid email.")
+	}
 
 	userRecord, err := s.repo.GetUserRecordByEmail(email)
 	if err != nil {
@@ -36,24 +48,18 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 	}
 
 	if userRecord == nil {
-		EmailErrors = append(EmailErrors, "Could not find user with that email")
+		userLoginErrors.EmailErrors = append(userLoginErrors.EmailErrors, "Could not find user with that email")
+	}
 
-		userLoginErrors := userLoginErrors{
-			PasswordErrors: PasswordErrors,
-			EmailErrors:    EmailErrors,
-		}
-
+	if len(userLoginErrors.EmailErrors) > 0 {
 		return nil, &userLoginErrors, nil
 	}
 
 	if userRecord.Password != password {
-		PasswordErrors = append(PasswordErrors, "Incorrect Password")
+		userLoginErrors.PasswordErrors = append(userLoginErrors.PasswordErrors, "Incorrect Password")
+	}
 
-		userLoginErrors := userLoginErrors{
-			PasswordErrors: PasswordErrors,
-			EmailErrors:    EmailErrors,
-		}
-
+	if len(userLoginErrors.PasswordErrors) > 0 {
 		return nil, &userLoginErrors, nil
 	}
 
@@ -127,11 +133,6 @@ func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, err
 	}
 
 	return todo, nil
-}
-
-func isValidEmail(email string) bool {
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	return emailRegex.MatchString(email)
 }
 
 func (s *Service) NewUser(username, email, password string) (*models.User, error) {
