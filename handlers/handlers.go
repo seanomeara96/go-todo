@@ -81,11 +81,20 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	user, userErrors, err := h.service.Login(email, password)
+	if err != nil {
+		http.Error(w, "error logging user in", http.StatusInternalServerError)
+		return
+	}
 	if user == nil {
 		loginFormProps := renderer.NewLoginFormProps(userErrors.EmailErrors, userErrors.PasswordErrors)
 		basePageProps := renderer.NewBasePageProps(nil)
-		homePageProps := renderer.NewHomePageProps(basePageProps, nil, &loginFormProps)
+		todoListProps := renderer.NewTodoListProps([]*models.Todo{}, false)
+		homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps, loginFormProps)
 		bytes, err := h.render.HomePage(homePageProps)
+		if err != nil {
+			http.Error(w, "could not render homepage", http.StatusInternalServerError)
+			return
+		}
 		w.Write(bytes)
 		return
 	}
@@ -119,6 +128,7 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := getUserFromSession(session)
+
 	canCreateNewTodo := false
 	var list []*models.Todo
 	if user != nil {
@@ -139,9 +149,12 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	basePageProps := renderer.NewBasePageProps(user)
 	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
-	homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps)
+	noErrors := []string{}
+	loginFormProps := renderer.NewLoginFormProps(noErrors, noErrors)
+	homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps, loginFormProps)
 	bytes, err := h.render.HomePage(homePageProps)
 	if err != nil {
+		log.Print(err)
 		http.Error(w, "could not render home-logged-out", http.StatusInternalServerError)
 		return
 	}

@@ -147,7 +147,9 @@ func (r *Repository) GetUserRecordByEmail(email string) (*models.UserRecord, err
 		&userRecord.IsPaidUser,
 	)
 	if err != nil {
-		log.Println(err)
+		if err.Error() == "sql: no rows in result set" {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &userRecord, nil

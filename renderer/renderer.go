@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"bytes"
+	"go-todo/models"
 	"html/template"
 )
 
@@ -32,17 +33,18 @@ func NewBasePageProps(user *models.User) BasePageProps {
 }
 
 /*
-	Homepage
+Homepage
 */
 type HomePageProps struct {
 	BasePageProps
-	TodoListProps *TodoListProps
-	LoginFormProps *LoginFormProps
+	TodoListProps  TodoListProps
+	LoginFormProps LoginFormProps
 }
-func NewHomePageProps(basePageProps BasePageProps, todoListProps *TodoListProps, loginFormProps *LoginFormProps) HomePageProps {
+
+func NewHomePageProps(basePageProps BasePageProps, todoListProps TodoListProps, loginFormProps LoginFormProps) HomePageProps {
 	return HomePageProps{
-		BasePageProps: basePageProps,
-		TodoListProps: todoListProps,
+		BasePageProps:  basePageProps,
+		TodoListProps:  todoListProps,
 		LoginFormProps: loginFormProps,
 	}
 }
@@ -51,11 +53,12 @@ func (r *Renderer) HomePage(p HomePageProps) ([]byte, error) {
 }
 
 /*
-	SignupPage
+SignupPage
 */
 type SignupPageProps struct {
 	BasePageProps
 }
+
 func NewSignupPageProps(basePageProps BasePageProps) SignupPageProps {
 	return SignupPageProps{
 		BasePageProps: basePageProps,
@@ -66,11 +69,12 @@ func (r *Renderer) Signup(p SignupPageProps) ([]byte, error) {
 }
 
 /*
-	UpgradePage
+UpgradePage
 */
 type UpgradePageProps struct {
 	BasePageProps
 }
+
 func NewUpgradePageProps(basePageProps BasePageProps) UpgradePageProps {
 	return UpgradePageProps{
 		BasePageProps: basePageProps,
@@ -81,11 +85,12 @@ func (r *Renderer) Upgrade(p UpgradePageProps) ([]byte, error) {
 }
 
 /*
-	Success Page
+Success Page
 */
 type SuccessPageProps struct {
 	BasePageProps
 }
+
 func NewSuccessPageProps(basePageProps BasePageProps) SuccessPageProps {
 	return SuccessPageProps{
 		BasePageProps: basePageProps,
@@ -96,11 +101,12 @@ func (r *Renderer) Success(p SuccessPageProps) ([]byte, error) {
 }
 
 /*
-	Cancel Page
+Cancel Page
 */
 type CancelPageProps struct {
 	BasePageProps
 }
+
 func NewCancelPageProps(basePageProps BasePageProps) CancelPageProps {
 	return CancelPageProps{
 		BasePageProps: basePageProps,
@@ -113,6 +119,7 @@ func (r *Renderer) Cancel(p CancelPageProps) ([]byte, error) {
 // partials
 
 type TodoProps *models.Todo
+
 func NewTodoProps(todo *models.Todo) TodoProps {
 	return todo
 }
@@ -120,12 +127,11 @@ func (r *Renderer) Todo(p TodoProps) ([]byte, error) {
 	return r.render("todo", p)
 }
 
-
-
 type TodoListProps struct {
 	Todos            []*models.Todo
 	CanCreateNewTodo bool
 }
+
 func NewTodoListProps(todoList []*models.Todo, canCreateNewTodo bool) TodoListProps {
 	return TodoListProps{
 		Todos:            todoList,
@@ -136,17 +142,17 @@ func (r *Renderer) TodoList(p TodoListProps) ([]byte, error) {
 	return r.render("todo-list", p)
 }
 
-
 type LoginFormProps struct {
-	EmailErrors *[]string
-	PasswordErrors *[]string
+	EmailErrors    []string
+	PasswordErrors []string
 }
-func NewLoginFormProps(emailErrors, passwordErrors *[]string){
+
+func NewLoginFormProps(emailErrors, passwordErrors []string) LoginFormProps {
 	return LoginFormProps{
-		EmailErrors: emailErrors,
+		EmailErrors:    emailErrors,
 		PasswordErrors: passwordErrors,
 	}
 }
-func (r *Renderer) LoginForm(p LoginFormProps)([]byte, error) {
+func (r *Renderer) LoginForm(p LoginFormProps) ([]byte, error) {
 	return r.render("login-form", p)
 }

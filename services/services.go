@@ -21,8 +21,8 @@ func NewService(r *repositories.Repository) *Service {
 }
 
 type userLoginErrors struct {
-	EmailErrors    *[]string
-	PasswordErrors *[]string
+	EmailErrors    []string
+	PasswordErrors []string
 }
 
 func (s *Service) Login(email string, password string) (*models.User, *userLoginErrors, error) {
@@ -37,25 +37,29 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 
 	if userRecord == nil {
 		EmailErrors = append(EmailErrors, "Could not find user with that email")
+
 		userLoginErrors := userLoginErrors{
-			PasswordErrors: &PasswordErrors,
-			EmailErrors:    &EmailErrors,
+			PasswordErrors: PasswordErrors,
+			EmailErrors:    EmailErrors,
 		}
-		return &user, &userLoginErrors, nil
+
+		return nil, &userLoginErrors, nil
 	}
 
 	if userRecord.Password != password {
 		PasswordErrors = append(PasswordErrors, "Incorrect Password")
+
+		userLoginErrors := userLoginErrors{
+			PasswordErrors: PasswordErrors,
+			EmailErrors:    EmailErrors,
+		}
+
+		return nil, &userLoginErrors, nil
 	}
 
 	user = models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPaidUser)
 
-	userLoginErrors := userLoginErrors{
-		PasswordErrors: &PasswordErrors,
-		EmailErrors:    &EmailErrors,
-	}
-
-	return &user, &userLoginErrors, nil
+	return &user, nil, nil
 }
 
 func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
