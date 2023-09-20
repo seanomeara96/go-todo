@@ -3,7 +3,7 @@
         {{ if .User }}
             {{ template "logged-in" . }} 
         {{ else }}
-            {{template "login-form" . }} 
+            {{template "login-form" .LoginFormProps }} 
         {{ end }}
     {{ template "footer" .}}
 {{ end }}

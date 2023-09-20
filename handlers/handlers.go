@@ -59,14 +59,15 @@ func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, "user-session")
 	if err != nil {
-		panic(err)
+		http.Error(w, "could not get session from request", http.StatusInternalServerError)
+		return
 	}
 
 	user := getUserFromSession(session)
 
 	if user != nil {
 		// user already logged in
-		http.Redirect(w, r, "", http.StatusFound)
+		noCacheRedirect(w, r)
 		return
 	}
 
@@ -80,13 +81,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	user, userErrors, err := h.service.Login(email, password)
-	if err != nil {
-		http.Error(w, "Something went wrong during login", http.StatusInternalServerError)
-		return
-	}
-
 	if user == nil {
-		http.Error(w, "Incorrect credentials", http.StatusBadRequest)
+		loginFormProps := renderer.NewLoginFormProps(userErrors.EmailErrors, userErrors.PasswordErrors)
+		basePageProps := renderer.NewBasePageProps(nil)
+		homePageProps := renderer.NewHomePageProps(basePageProps, nil, &loginFormProps)
+		bytes, err := h.render.HomePage(homePageProps)
+		w.Write(bytes)
 		return
 	}
 	// TODO resend user login page with user errors
