@@ -57,11 +57,13 @@ SignupPage
 */
 type SignupPageProps struct {
 	BasePageProps
+	SignupFormProps
 }
 
-func NewSignupPageProps(basePageProps BasePageProps) SignupPageProps {
+func NewSignupPageProps(basePageProps BasePageProps, signupFormProps SignupFormProps) SignupPageProps {
 	return SignupPageProps{
-		BasePageProps: basePageProps,
+		BasePageProps:   basePageProps,
+		SignupFormProps: signupFormProps,
 	}
 }
 func (r *Renderer) Signup(p SignupPageProps) ([]byte, error) {
@@ -155,4 +157,18 @@ func NewLoginFormProps(emailErrors, passwordErrors []string) LoginFormProps {
 }
 func (r *Renderer) LoginForm(p LoginFormProps) ([]byte, error) {
 	return r.render("login-form", p)
+}
+
+type SignupFormProps struct {
+	EmailErrors    []string
+	UsernameErrors []string
+	PasswordErrors []string
+}
+
+func NewSignupFormProps(usernameErrors, emailErrors, passwordErrors []string) SignupFormProps {
+	return SignupFormProps{
+		UsernameErrors: usernameErrors,
+		EmailErrors:    emailErrors,
+		PasswordErrors: passwordErrors,
+	}
 }

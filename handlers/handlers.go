@@ -22,6 +22,9 @@ import (
 	"github.com/michaeljs1990/sqlitestore"
 )
 
+const STRIPE_API_KEY = "STRIPE_API_KEY"
+const USER_SESSION = "user-session"
+
 type Handler struct {
 	service *services.Service
 	store   *sqlitestore.SqliteStore
@@ -36,14 +39,20 @@ func NewHandler(service *services.Service, store *sqlitestore.SqliteStore, rende
 	}
 }
 
-func getUserFromSession(s *sessions.Session) *models.User {
-	val := s.Values["user"]
-	var user = models.User{}
-	user, ok := val.(models.User)
-	if !ok {
-		return nil
+func (h *Handler) getUserFromSession(s *sessions.Session, err error) (*models.User, error) {
+	if err != nil {
+		return nil, err
 	}
-	return &user
+	val := s.Values["user"]
+	userID, ok := val.(string)
+	if !ok {
+		return nil, nil
+	}
+	user, err := h.service.GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
@@ -57,13 +66,12 @@ func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	session, err := h.store.Get(r, USER_SESSION)
+	user, err := h.getUserFromSession(session, err)
 	if err != nil {
-		http.Error(w, "could not get session from request", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	user := getUserFromSession(session)
 
 	if user != nil {
 		// user already logged in
@@ -99,13 +107,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// TODO resend user login page with user errors
-	session.Values["user"] = *user
+	session.Values["user"] = user.ID
 	session.Save(r, w)
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	session, err := h.store.Get(r, USER_SESSION)
 	if err != nil {
 		http.Error(w, "could not get session", http.StatusInternalServerError)
 		return
@@ -121,24 +129,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "Could not get user from store", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	user := getUserFromSession(session)
-	if user != nil {
-		savedUser, err := h.service.GetUserByID(user.ID)
-		if savedUser != nil {
-			user = savedUser
-		} else {
-			user = nil
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 
 	canCreateNewTodo := false
@@ -175,19 +169,10 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "Could not get user from store", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	user := getUserFromSession(session)
-	if user != nil {
-		user, err = h.service.GetUserByID(user.ID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 
 	if user != nil {
@@ -196,7 +181,9 @@ func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	basePageProps := renderer.NewBasePageProps(user)
-	signupPageProps := renderer.NewSignupPageProps(basePageProps)
+	noErrors := []string{}
+	signupFormProps := renderer.NewSignupFormProps(noErrors, noErrors, noErrors)
+	signupPageProps := renderer.NewSignupPageProps(basePageProps, signupFormProps)
 	signupPageBytes, err := h.render.Signup(signupPageProps)
 	if err != nil {
 		http.Error(w, "could not render sigup page", http.StatusInternalServerError)
@@ -206,13 +193,11 @@ func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "could not get user from store", http.StatusInternalServerError)
-		return
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	user := getUserFromSession(session)
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
@@ -230,13 +215,11 @@ func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
-	userSession, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	user := getUserFromSession(userSession)
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
@@ -244,16 +227,17 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 
 	checkoutSessionID := r.URL.Query().Get("session_id")
 
-	stripeKey := os.Getenv("STRIPE_API_KEY")
+	stripeKey := os.Getenv(STRIPE_API_KEY)
+
 	if stripeKey == "" {
-		http.Error(w, "no stripe api key", http.StatusInternalServerError)
+		log.Printf("Could not access key(%s) from ENV", STRIPE_API_KEY)
+		http.Error(w, "Trouble connecting with payment provider. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
 	stripe.Key = stripeKey
 
 	s, _ := checkoutsession.Get(checkoutSessionID, nil)
-	fmt.Println("checkout Session", s)
 	// handle error ?
 
 	// get user from db
@@ -268,8 +252,6 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not add customer details to user", http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("user payment status", s.PaymentStatus)
 
 	if s.PaymentStatus == "paid" {
 		err = h.service.UpdateUserPaymentStatus(user.ID, true)
@@ -290,13 +272,13 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CancelPage(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "could not get session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	user := getUserFromSession(session)
+	// redirect to homepage if not logged in
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
@@ -314,19 +296,19 @@ func (h *Handler) CancelPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
-	userSession, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
+
 	if err != nil {
-		http.Error(w, "could not retrieve user session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	user := getUserFromSession(userSession)
 	if user == nil {
 		noCacheRedirect(w, r)
 		return
 	}
 
-	stripeKey := os.Getenv("STRIPE_API_KEY")
+	stripeKey := os.Getenv(STRIPE_API_KEY)
 	if stripeKey == "" {
 		http.Error(w, "no stripe api key", http.StatusInternalServerError)
 		return
@@ -360,10 +342,14 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Request) {
-	userSession, _ := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	user := getUserFromSession(userSession)
 	if user == nil {
+		noCacheRedirect(w, r)
 		// do something
 		return
 	}
@@ -383,7 +369,12 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 		ReturnURL: stripe.String("http://localhost:3000/"),
 	}
 
-	s, _ := billingportalsession.New(params)
+	s, err := billingportalsession.New(params)
+	if err != nil {
+		log.Printf("Failed to create a billing portal session")
+		http.Error(w, "There was a problem connecting with our payment provider. Please try again later", http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
 }
@@ -747,17 +738,6 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		invoice.payment_failed	Sent each billing interval if there is an issue with your customer’s payment method.*/
 }
 
-func (h *Handler) userCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, error) {
-	userIsPaidUser, err := h.service.UserIsPaidUser(user.ID)
-	if err != nil {
-		return false, err
-	}
-
-	canCreateNewTodo := (!userIsPaidUser && len(list) < 10) || userIsPaidUser
-
-	return canCreateNewTodo, nil
-}
-
 func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -765,13 +745,11 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "could not get user session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	user := getUserFromSession(session)
 
 	if user == nil {
 		http.Error(w, "Usermust be logged in", http.StatusForbidden)
@@ -807,14 +785,12 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) UpdateTodoDescription(w http.ResponseWriter, r *http.Request) {}
 func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
-
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "could not get session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	user := getUserFromSession(session)
 	if user == nil {
 		http.Error(w, "user must be logged in", http.StatusForbidden)
 		return
@@ -861,7 +837,7 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userCanCreateNewTodo, err := h.userCanCreateNewTodo(user, list)
+	userCanCreateNewTodo, err := h.service.UserCanCreateNewTodo(user, list)
 	if err != nil {
 		http.Error(w, "error determining user payment status", http.StatusInternalServerError)
 		return
@@ -873,17 +849,16 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not render todo", http.StatusInternalServerError)
 		return
 	}
+
 	w.Write(todoListBytes)
 }
 
 func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) {
-	session, err := h.store.Get(r, "user-session")
+	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, "could not get session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	user := getUserFromSession(session)
 
 	if user == nil {
 		http.Error(w, "user must be logged in", http.StatusForbidden)
@@ -937,7 +912,20 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// TODO sanitize and clean input
 
-	_, err = h.service.NewUser(name, email, password)
+	_, userErrors, err := h.service.NewUser(name, email, password)
+	if userErrors != nil {
+		basePageProps := renderer.NewBasePageProps(nil)
+		signUpFormProps := renderer.NewSignupFormProps(userErrors.UsernameErrors, userErrors.EmailErrors, userErrors.PasswordErrors)
+		signupPageProps := renderer.NewSignupPageProps(basePageProps, signUpFormProps)
+		signupPageBytes, err := h.render.Signup(signupPageProps)
+		if err != nil {
+			http.Error(w, "could not render sigup page", http.StatusInternalServerError)
+			return
+		}
+		w.Write(signupPageBytes)
+		return
+	}
+
 	if err != nil {
 		http.Error(w, "could not create user", http.StatusInternalServerError)
 		return

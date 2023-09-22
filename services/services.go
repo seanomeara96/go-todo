@@ -7,6 +7,7 @@ import (
 	"html"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -139,38 +140,70 @@ func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, err
 	return todo, nil
 }
 
+type userSignupErrors struct {
+	UsernameErrors []string
+	EmailErrors    []string
+	PasswordErrors []string
+}
+
 // sign up for a new account
-func (s *Service) NewUser(username, email, password string) (*models.User, error) {
-	// sanitize and  clean usernalme email
+func (s *Service) NewUser(username, email, password string) (*models.User, *userSignupErrors, error) {
+	userSignupErrors := userSignupErrors{[]string{}, []string{}, []string{}}
+
+	// sanitize and  clean username, email & password
 	id := uuid.New().String()
 
 	username = html.EscapeString(username)
 	email = html.EscapeString(email)
 
-	if !isValidEmail(email) {
-		return nil, fmt.Errorf("must provide a valid email")
+	username = strings.TrimSpace(username)
+	email = strings.TrimSpace(email)
+	password = strings.TrimSpace(password)
+
+	if username == "" {
+		userSignupErrors.UsernameErrors = append(userSignupErrors.UsernameErrors, "You must provide a user name.")
+	}
+
+	if email == "" {
+		userSignupErrors.EmailErrors = append(userSignupErrors.EmailErrors, "You must provide an email.")
+	}
+
+	if password == "" {
+		userSignupErrors.PasswordErrors = append(userSignupErrors.PasswordErrors, "You must provide a password.")
+	}
+
+	if username == "" || email == "" || password == "" {
+		return nil, &userSignupErrors, nil
+	}
+
+	if !isValidEmail(email) && email != "" {
+		userSignupErrors.EmailErrors = append(userSignupErrors.EmailErrors, "You must provide a valid email.")
 	}
 
 	// does email exist
-	found, err := s.repo.UserEmailExists(email)
+	emailExists, err := s.repo.UserEmailExists(email)
 	if err != nil {
-		return nil, fmt.Errorf("could not determin existence of email")
+		return nil, nil, err
 	}
 
-	if found {
-		return nil, fmt.Errorf("must supply unique email")
+	if emailExists {
+		userSignupErrors.EmailErrors = append(userSignupErrors.EmailErrors, "An account for this email already exists. Please Log In.")
+	}
+
+	// if any errors
+	if len(userSignupErrors.EmailErrors) > 0 || len(userSignupErrors.UsernameErrors) > 0 || len(userSignupErrors.PasswordErrors) > 0 {
+		return nil, &userSignupErrors, nil
 	}
 
 	hashedpassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// need to remember to hash password first
 	userToInsert := models.NewUserRecord(id, username, email, string(hashedpassword), false)
 	err = s.repo.SaveUser(userToInsert)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	user := models.NewUser(
@@ -181,7 +214,18 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 	)
 
 	log.Printf("User (%s) created successfully", user.Email)
-	return &user, nil
+	return &user, nil, nil
+}
+
+func (s *Service) UserCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, error) {
+	userIsPaidUser, err := s.UserIsPaidUser(user.ID)
+	if err != nil {
+		return false, err
+	}
+
+	canCreateNewTodo := (!userIsPaidUser && len(list) < 10) || userIsPaidUser
+
+	return canCreateNewTodo, nil
 }
 
 func (s *Service) AddStripeIDToUser(userID, stripeID string) error {

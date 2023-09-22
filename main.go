@@ -2,9 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"encoding/gob"
 	"go-todo/handlers"
-	"go-todo/models"
 	"go-todo/renderer"
 	"go-todo/repositories"
 	"go-todo/services"
@@ -44,9 +42,6 @@ func main() {
 		MaxAge:   60 * 15,
 		HttpOnly: true,
 	}
-
-	//By calling gob.Register(&CustomData{}), you're letting the gob package know how to encode and decode instances of your CustomData struct.
-	gob.Register(models.User{})
 
 	templateGlobPath := "./templates/**/*.html"
 	tmpl, err := template.ParseGlob(templateGlobPath)
