@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"go-todo/logger"
 	"go-todo/models"
 	"go-todo/renderer"
 	"go-todo/services"
@@ -29,13 +30,15 @@ type Handler struct {
 	service *services.Service
 	store   *sqlitestore.SqliteStore
 	render  *renderer.Renderer
+	logger  *logger.Logger
 }
 
-func NewHandler(service *services.Service, store *sqlitestore.SqliteStore, renderer *renderer.Renderer) *Handler {
+func NewHandler(service *services.Service, store *sqlitestore.SqliteStore, renderer *renderer.Renderer, logger *logger.Logger) *Handler {
 	return &Handler{
 		service: service,
 		store:   store,
 		render:  renderer,
+		logger:  logger,
 	}
 }
 

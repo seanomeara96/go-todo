@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"go-todo/handlers"
+	"go-todo/logger"
 	"go-todo/renderer"
 	"go-todo/repositories"
 	"go-todo/services"
@@ -19,8 +20,18 @@ import (
 )
 
 func main() {
+	logFile, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetOutput(logFile)
+	if err != nil {
+		log.Fatalf("Error opening log file: %v", err)
+	}
+	defer logFile.Close()
+
 	// Load environment variables from .env file
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 		// You can choose to handle the error here or exit the program.
@@ -49,10 +60,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	repository := repositories.NewRepository(db)
-	service := services.NewService(repository)
-	renderer := renderer.NewRenderer(tmpl)
-	handler := handlers.NewHandler(service, store, renderer)
+	logger := logger.NewLogger(0)
+	repository := repositories.NewRepository(db, logger)
+	service := services.NewService(repository, logger)
+	renderer := renderer.NewRenderer(tmpl, logger)
+	handler := handlers.NewHandler(service, store, renderer, logger)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", handler.HomePage).Methods(http.MethodGet)

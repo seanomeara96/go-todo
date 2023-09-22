@@ -1,13 +1,18 @@
 package repositories
 
-import "database/sql"
+import (
+	"database/sql"
+	"go-todo/logger"
+)
 
 type Repository struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *logger.Logger
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db *sql.DB, logger *logger.Logger) *Repository {
 	return &Repository{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }

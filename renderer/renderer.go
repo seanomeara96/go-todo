@@ -2,17 +2,20 @@ package renderer
 
 import (
 	"bytes"
+	"go-todo/logger"
 	"go-todo/models"
 	"html/template"
 )
 
 type Renderer struct {
-	tmpl *template.Template
+	tmpl   *template.Template
+	logger *logger.Logger
 }
 
-func NewRenderer(tmpl *template.Template) *Renderer {
+func NewRenderer(tmpl *template.Template, logger *logger.Logger) *Renderer {
 	return &Renderer{
-		tmpl: tmpl,
+		tmpl:   tmpl,
+		logger: logger,
 	}
 }
 

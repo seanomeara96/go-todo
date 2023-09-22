@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"go-todo/logger"
 	"go-todo/models"
 	"go-todo/repositories"
 	"html"
@@ -14,12 +15,14 @@ import (
 )
 
 type Service struct {
-	repo *repositories.Repository
+	repo   *repositories.Repository
+	logger *logger.Logger
 }
 
-func NewService(r *repositories.Repository) *Service {
+func NewService(r *repositories.Repository, logger *logger.Logger) *Service {
 	return &Service{
-		repo: r,
+		repo:   r,
+		logger: logger,
 	}
 }
 
