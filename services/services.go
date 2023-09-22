@@ -5,9 +5,11 @@ import (
 	"go-todo/models"
 	"go-todo/repositories"
 	"html"
+	"log"
 	"regexp"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
@@ -55,7 +57,9 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 		return nil, &userLoginErrors, nil
 	}
 
-	if userRecord.Password != password {
+	err = bcrypt.CompareHashAndPassword([]byte(userRecord.Password), []byte(password))
+
+	if err != nil {
 		userLoginErrors.PasswordErrors = append(userLoginErrors.PasswordErrors, "Incorrect Password")
 	}
 
@@ -64,7 +68,7 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 	}
 
 	user = models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPaidUser)
-
+	log.Printf("User (%s) logged in successfully", user.Email)
 	return &user, nil, nil
 }
 
@@ -135,6 +139,7 @@ func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, err
 	return todo, nil
 }
 
+// sign up for a new account
 func (s *Service) NewUser(username, email, password string) (*models.User, error) {
 	// sanitize and  clean usernalme email
 	id := uuid.New().String()
@@ -156,8 +161,13 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 		return nil, fmt.Errorf("must supply unique email")
 	}
 
+	hashedpassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		return nil, err
+	}
+
 	// need to remember to hash password first
-	userToInsert := models.NewUserRecord(id, username, email, password, false)
+	userToInsert := models.NewUserRecord(id, username, email, string(hashedpassword), false)
 	err = s.repo.SaveUser(userToInsert)
 	if err != nil {
 		return nil, err
@@ -165,11 +175,12 @@ func (s *Service) NewUser(username, email, password string) (*models.User, error
 
 	user := models.NewUser(
 		userToInsert.ID,
-		userToInsert.Email,
 		userToInsert.Name,
+		userToInsert.Email,
 		userToInsert.IsPaidUser,
 	)
 
+	log.Printf("User (%s) created successfully", user.Email)
 	return &user, nil
 }
 

@@ -12,4 +12,7 @@ require (
 	github.com/stripe/stripe-go/v75 v75.3.0
 )
 
-require github.com/gorilla/securecookie v1.1.1 // indirect
+require (
+	github.com/gorilla/securecookie v1.1.1 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
+)

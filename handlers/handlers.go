@@ -128,6 +128,18 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := getUserFromSession(session)
+	if user != nil {
+		savedUser, err := h.service.GetUserByID(user.ID)
+		if savedUser != nil {
+			user = savedUser
+		} else {
+			user = nil
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 
 	canCreateNewTodo := false
 	var list []*models.Todo
@@ -170,6 +182,14 @@ func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := getUserFromSession(session)
+	if user != nil {
+		user, err = h.service.GetUserByID(user.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if user != nil {
 		noCacheRedirect(w, r)
 		return
@@ -233,6 +253,7 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 	stripe.Key = stripeKey
 
 	s, _ := checkoutsession.Get(checkoutSessionID, nil)
+	fmt.Println("checkout Session", s)
 	// handle error ?
 
 	// get user from db
@@ -247,6 +268,8 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not add customer details to user", http.StatusInternalServerError)
 		return
 	}
+
+	fmt.Println("user payment status", s.PaymentStatus)
 
 	if s.PaymentStatus == "paid" {
 		err = h.service.UpdateUserPaymentStatus(user.ID, true)
