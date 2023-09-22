@@ -22,7 +22,11 @@ func NewRenderer(tmpl *template.Template, logger *logger.Logger) *Renderer {
 func (r *Renderer) render(templateName string, data any) ([]byte, error) {
 	var buffer bytes.Buffer
 	err := r.tmpl.ExecuteTemplate(&buffer, templateName, data)
-	return buffer.Bytes(), err
+	if err != nil {
+		r.logger.Debug(err.Error())
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 type BasePageProps struct {
