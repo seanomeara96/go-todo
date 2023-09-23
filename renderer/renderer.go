@@ -56,7 +56,11 @@ func NewHomePageProps(basePageProps BasePageProps, todoListProps TodoListProps, 
 	}
 }
 func (r *Renderer) HomePage(p HomePageProps) ([]byte, error) {
-	return r.render("home", p)
+	bytes, err := r.render("home", p)
+	if err != nil {
+		r.logger.Error("Could not render Homepage")
+	}
+	return bytes, err
 }
 
 /*
@@ -74,7 +78,11 @@ func NewSignupPageProps(basePageProps BasePageProps, signupFormProps SignupFormP
 	}
 }
 func (r *Renderer) Signup(p SignupPageProps) ([]byte, error) {
-	return r.render("signup", p)
+	bytes, err := r.render("signup", p)
+	if err != nil {
+		r.logger.Error("Could not render signup page")
+	}
+	return bytes, err
 }
 
 /*
@@ -90,7 +98,11 @@ func NewUpgradePageProps(basePageProps BasePageProps) UpgradePageProps {
 	}
 }
 func (r *Renderer) Upgrade(p UpgradePageProps) ([]byte, error) {
-	return r.render("upgrade", p)
+	bytes, err := r.render("upgrade", p)
+	if err != nil {
+		r.logger.Error("Could not render upgrade page.")
+	}
+	return bytes, err
 }
 
 /*
@@ -106,7 +118,11 @@ func NewSuccessPageProps(basePageProps BasePageProps) SuccessPageProps {
 	}
 }
 func (r *Renderer) Success(p SuccessPageProps) ([]byte, error) {
-	return r.render("success", p)
+	bytes, err := r.render("success", p)
+	if err != nil {
+		r.logger.Error("Could not render success page")
+	}
+	return bytes, err
 }
 
 /*
@@ -122,7 +138,11 @@ func NewCancelPageProps(basePageProps BasePageProps) CancelPageProps {
 	}
 }
 func (r *Renderer) Cancel(p CancelPageProps) ([]byte, error) {
-	return r.render("cancel", p)
+	bytes, err := r.render("cancel", p)
+	if err != nil {
+		r.logger.Error("Could not render cancel page")
+	}
+	return bytes, err
 }
 
 // partials
@@ -133,7 +153,11 @@ func NewTodoProps(todo *models.Todo) TodoProps {
 	return todo
 }
 func (r *Renderer) Todo(p TodoProps) ([]byte, error) {
-	return r.render("todo", p)
+	bytes, err := r.render("todo", p)
+	if err != nil {
+		r.logger.Error("Could not render todo element")
+	}
+	return bytes, err
 }
 
 type TodoListProps struct {
@@ -148,7 +172,11 @@ func NewTodoListProps(todoList []*models.Todo, canCreateNewTodo bool) TodoListPr
 	}
 }
 func (r *Renderer) TodoList(p TodoListProps) ([]byte, error) {
-	return r.render("todo-list", p)
+	bytes, err := r.render("todo-list", p)
+	if err != nil {
+		r.logger.Error("Could not render todo list element")
+	}
+	return bytes, err
 }
 
 type LoginFormProps struct {
@@ -163,7 +191,11 @@ func NewLoginFormProps(emailErrors, passwordErrors []string) LoginFormProps {
 	}
 }
 func (r *Renderer) LoginForm(p LoginFormProps) ([]byte, error) {
-	return r.render("login-form", p)
+	bytes, err := r.render("login-form", p)
+	if err != nil {
+		r.logger.Error("Could not render login form element")
+	}
+	return bytes, err
 }
 
 type SignupFormProps struct {
