@@ -7,12 +7,16 @@ import (
 	"go-todo/repositories"
 	"html"
 	"log"
+	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type internalError error
+type clientError *ClientError
 
 type Service struct {
 	repo   *repositories.Repository
@@ -50,6 +54,7 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 
 	userRecord, err := s.repo.GetUserRecordByEmail(email)
 	if err != nil {
+		s.logger.Error("Could not get user record by email")
 		return nil, nil, err
 	}
 
@@ -87,6 +92,7 @@ func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 
 	lastInsertedTodoID, err := s.repo.CreateTodo(&todo)
 	if err != nil {
+		s.logger.Error("Could not create new Todo item")
 		return nil, err
 	}
 
@@ -95,52 +101,111 @@ func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 }
 
 func (s *Service) GetUserTodoList(userID string) ([]*models.Todo, error) {
-	return s.repo.GetAllTodosByUserID(userID)
+	todoList, err := s.repo.GetAllTodosByUserID(userID)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not get all todos for user ID (%s)", userID)
+		s.logger.Error(errMsg)
+	}
+	return todoList, err
 }
 
-func (s *Service) GetTodoByID(ID int) (*models.Todo, error) {
-	return s.repo.GetTodoByID(ID)
+func (s *Service) GetTodoByID(ID int, userID string) (*models.Todo, clientError, internalError) {
+	todo, err := s.repo.GetTodoByID(ID)
+	// internal server error
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not get todo id %d", ID)
+		s.logger.Error(errMsg)
+		return nil, nil, err
+	}
+
+	// client error
+	if todo.UserID != userID {
+		warningMsg := fmt.Sprintf("User (%s) attempted unauthorized access of resource", userID)
+		s.logger.Warning(warningMsg)
+		return nil, NewClientError("User not authorized", http.StatusUnauthorized), nil
+	}
+	return todo, nil, nil
 }
 
-func (s *Service) DeleteTodo(ID int) error {
+func (s *Service) DeleteTodo(todoID int, userID string) (clientError, internalError) {
 	// TODO run auth check
-
-	return s.repo.DeleteTodo(ID)
-}
-
-func (s *Service) DeleteAllTodosByUserID(userID string) error {
-	return s.repo.DeleteAllTodosByUserID(userID)
-}
-
-func (s *Service) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool) error {
-	return s.repo.DeleteAllTodosByUserIDAndStatus(userID, IsComplete)
-}
-
-func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, error) {
 	todo, err := s.repo.GetTodoByID(todoID)
 	if err != nil {
+		errMsg := fmt.Sprintf("Could not get todo (%d) for user (%s)", todoID, userID)
+		s.logger.Error(errMsg)
 		return nil, err
 	}
 
 	if todo == nil {
+		clientError := NewClientError("The todo you tried to delete does not exist", http.StatusBadRequest)
+		return clientError, nil
+	}
+
+	if todo.UserID != userID {
+		clientError := NewClientError("You do not have permission to delete this todo", http.StatusUnauthorized)
+		return clientError, nil
+	}
+
+	err = s.repo.DeleteTodo(todoID)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not delete todo (%d)", todoID)
+		s.logger.Error(errMsg)
 		return nil, err
+	}
+	return nil, nil
+}
+
+func (s *Service) DeleteAllTodosByUserID(userID string) internalError {
+	err := s.repo.DeleteAllTodosByUserID(userID)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not delete all todos for user (%s)", userID)
+		s.logger.Error(errMsg)
+	}
+	return err
+}
+
+func (s *Service) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool) internalError {
+	err := s.repo.DeleteAllTodosByUserIDAndStatus(userID, IsComplete)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not delete all todos for user (%s) where completed = %v", userID, IsComplete)
+		s.logger.Error(errMsg)
+	}
+	return err
+}
+
+func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, clientError, internalError) {
+	todo, internalErr := s.repo.GetTodoByID(todoID)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not get todo (%d)", todoID)
+		s.logger.Error(errMsg)
+		return nil, nil, internalErr
+	}
+
+	if todo == nil {
+		clientError := NewClientError("The todo you are updating does not exist", http.StatusBadRequest)
+		return nil, clientError, nil
 	}
 
 	userIsAuthor := userID == todo.UserID
 	if !userIsAuthor {
-		return nil, fmt.Errorf("not authorized")
+		warningMsg := fmt.Sprintf("User (%s) attempted to make unauthorized update to todo (%d)", userID, todoID)
+		s.logger.Warning(warningMsg)
+		clientError := NewClientError("You are not authorized to update this todo", http.StatusUnauthorized)
+		return nil, clientError, nil
 	}
 
 	updatedStatus := !todo.IsComplete
 
 	todo.IsComplete = updatedStatus
 
-	err = s.repo.UpdateTodo(*todo)
-	if err != nil {
-		return nil, err
+	internalErr = s.repo.UpdateTodo(*todo)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not todo (%d)", todoID)
+		s.logger.Error(errMsg)
+		return nil, nil, internalErr
 	}
 
-	return todo, nil
+	return todo, nil, nil
 }
 
 type userSignupErrors struct {
@@ -220,10 +285,12 @@ func (s *Service) NewUser(username, email, password string) (*models.User, *user
 	return &user, nil, nil
 }
 
-func (s *Service) UserCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, error) {
-	userIsPaidUser, err := s.UserIsPaidUser(user.ID)
-	if err != nil {
-		return false, err
+func (s *Service) UserCanCreateNewTodo(user *models.User, list []*models.Todo) (bool, internalError) {
+	userIsPaidUser, internalErr := s.UserIsPaidUser(user.ID)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not determin payment status for user (%s)", user.ID)
+		s.logger.Error(errMsg)
+		return false, internalErr
 	}
 
 	canCreateNewTodo := (!userIsPaidUser && len(list) < 10) || userIsPaidUser
@@ -231,26 +298,57 @@ func (s *Service) UserCanCreateNewTodo(user *models.User, list []*models.Todo) (
 	return canCreateNewTodo, nil
 }
 
-func (s *Service) AddStripeIDToUser(userID, stripeID string) error {
-	return s.repo.AddStripeIDToUser(userID, stripeID)
+func (s *Service) AddStripeIDToUser(userID, stripeID string) internalError {
+	internalErr := s.repo.AddStripeIDToUser(userID, stripeID)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not add stripe customer id to user (%s)", userID)
+		s.logger.Error(errMsg)
+	}
+	return internalErr
 }
 
-func (s *Service) GetUserByID(userID string) (*models.User, error) {
-	return s.repo.GetUserByID(userID)
+func (s *Service) GetUserByID(userID string) (*models.User, internalError) {
+	user, internalErr := s.repo.GetUserByID(userID)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Coul not get user (%s)", userID)
+		s.logger.Error(errMsg)
+	}
+	return user, internalErr
 }
 
-func (s *Service) GetUserByEmail(email string) (*models.User, error) {
-	return s.repo.GetUserByEmail(email)
+func (s *Service) GetUserByEmail(email string) (*models.User, internalError) {
+	user, internalErr := s.repo.GetUserByEmail(email)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not get user (%s)", email)
+		s.logger.Error(errMsg)
+	}
+	return user, internalErr
 }
 
-func (s *Service) GetUserByStripeID(customerStripeID string) (*models.User, error) {
-	return s.repo.GetUserByStripeID(customerStripeID)
+func (s *Service) GetUserByStripeID(customerStripeID string) (*models.User, internalError) {
+	user, err := s.repo.GetUserByStripeID(customerStripeID)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not get customer from db with stripe ID (%s)", customerStripeID)
+		s.logger.Error(errMsg)
+	}
+	return user, err
+
 }
 
-func (s *Service) UpdateUserPaymentStatus(userID string, isPaidUser bool) error {
-	return s.repo.UpdateUserPaymentStatus(userID, isPaidUser)
+func (s *Service) UpdateUserPaymentStatus(userID string, isPaidUser bool) internalError {
+	internalErr := s.repo.UpdateUserPaymentStatus(userID, isPaidUser)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not update user (%s) paymennt status to %v", userID, isPaidUser)
+		s.logger.Error(errMsg)
+	}
+	return internalErr
 }
 
 func (s *Service) UserIsPaidUser(userID string) (bool, error) {
-	return s.repo.UserIsPaidUser(userID)
+	isPaidUser, internalErr := s.repo.UserIsPaidUser(userID)
+	if internalErr != nil {
+		errMsg := fmt.Sprintf("Could not determine payment status of user (%s)", userID)
+		s.logger.Error(errMsg)
+	}
+	return isPaidUser, internalErr
 }

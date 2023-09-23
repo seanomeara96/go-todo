@@ -799,13 +799,6 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// get user from database
-	user, err = h.service.GetUserByID(user.ID)
-	if err != nil {
-		http.Error(w, "could not find user", http.StatusInternalServerError)
-		return
-	}
-
 	vars := mux.Vars(r)
 	todoIDString := vars["id"]
 
@@ -815,21 +808,25 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := h.service.GetTodoByID(todoID)
-	if err != nil {
+	todo, clientError, internalError := h.service.GetTodoByID(todoID, user.ID)
+	if internalError != nil {
 		http.Error(w, "could not get todo", http.StatusInternalServerError)
 		return
 	}
 
-	userIsNotAuthor := user.ID != todo.UserID
-	if userIsNotAuthor {
-		http.Error(w, "not authorized", http.StatusBadRequest)
+	if clientError != nil {
+		http.Error(w, clientError.Message, clientError.Code)
 		return
 	}
 
-	err = h.service.DeleteTodo(todo.ID)
-	if err != nil {
+	clientError, internalError = h.service.DeleteTodo(todo.ID, user.ID)
+	if internalError != nil {
 		http.Error(w, "could not remove todo", http.StatusInternalServerError)
+		return
+	}
+
+	if clientError != nil {
+		http.Error(w, clientError.Message, clientError.Code)
 		return
 	}
 
@@ -882,9 +879,14 @@ func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := h.service.UpdateTodoStatus(user.ID, todoID)
+	todo, clientError, err := h.service.UpdateTodoStatus(user.ID, todoID)
 	if err != nil {
 		http.Error(w, "could not update todo", http.StatusInternalServerError)
+		return
+	}
+
+	if clientError != nil {
+		http.Error(w, clientError.Message, clientError.Code)
 		return
 	}
 
