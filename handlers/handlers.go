@@ -25,6 +25,7 @@ import (
 
 const STRIPE_API_KEY = "STRIPE_API_KEY"
 const USER_SESSION = "user-session"
+const STRIPE_WEBHOOK_SECRET = "STRIPE_WEBHOOK_SECRET"
 
 type Handler struct {
 	service *services.Service
@@ -91,6 +92,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 
+	infoMsg := fmt.Sprintf("User (%s) attempted login", email)
+	h.logger.Info(infoMsg)
+
 	user, userErrors, err := h.service.Login(email, password)
 	if err != nil {
 		http.Error(w, "error logging user in", http.StatusInternalServerError)
@@ -109,26 +113,33 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		w.Write(bytes)
 		return
 	}
-	// TODO resend user login page with user errors
 	session.Values["user"] = user.ID
 	session.Save(r, w)
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+
+	infoMsg = fmt.Sprintf("User (%s) logged in", user.Email)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, USER_SESSION)
+	user, err := h.getUserFromSession(session, err)
 	if err != nil {
-		http.Error(w, "could not get session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	err = h.store.Delete(r, w, session)
 	if err != nil {
+		h.logger.Error("Could not delete user session")
 		http.Error(w, "could not delete session", http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+
+	infoMsg := fmt.Sprintf("User (%s) logged out", user.ID)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
@@ -147,13 +158,11 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		userIsPayedUser, err := h.service.UserIsPaidUser(user.ID)
+		canCreateNewTodo, err = h.service.UserCanCreateNewTodo(user, list)
 		if err != nil {
-			http.Error(w, "error determining user payment status", http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-
-		canCreateNewTodo = (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 	}
 
 	basePageProps := renderer.NewBasePageProps(user)
@@ -169,6 +178,11 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(bytes)
+
+	if user != nil {
+		infoMsg := fmt.Sprintf("User (%s) loaded their todo list", user.ID)
+		h.logger.Info(infoMsg)
+	}
 }
 
 func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
@@ -215,6 +229,9 @@ func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(upgradePageBytes)
+
+	infoMsg := fmt.Sprintf("User (%s) went to the upgrade page", user.ID)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
@@ -223,8 +240,9 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	if user == nil {
-		noCacheRedirect(w, r)
+		h.Logout(w, r)
 		return
 	}
 
@@ -233,14 +251,18 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 	stripeKey := os.Getenv(STRIPE_API_KEY)
 
 	if stripeKey == "" {
-		log.Printf("Could not access key(%s) from ENV", STRIPE_API_KEY)
+		errorMsg := fmt.Sprintf("Could not access key(%s) from ENV", STRIPE_API_KEY)
+		h.logger.Error(errorMsg)
 		http.Error(w, "Trouble connecting with payment provider. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
 	stripe.Key = stripeKey
 
-	s, _ := checkoutsession.Get(checkoutSessionID, nil)
+	s, err := checkoutsession.Get(checkoutSessionID, nil)
+	if err != nil {
+		h.logger.Error("Could get checkout session from stripe")
+	}
 	// handle error ?
 
 	// get user from db
@@ -262,6 +284,9 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not update user payment status", http.StatusInternalServerError)
 			return
 		}
+
+		infoMsg := fmt.Sprintf("User (%s) became a premium user", user.ID)
+		h.logger.Info(infoMsg)
 	}
 
 	basePageProps := renderer.NewBasePageProps(user)
@@ -271,6 +296,7 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.Write(bytes)
 }
 
@@ -283,7 +309,7 @@ func (h *Handler) CancelPage(w http.ResponseWriter, r *http.Request) {
 
 	// redirect to homepage if not logged in
 	if user == nil {
-		noCacheRedirect(w, r)
+		h.Logout(w, r)
 		return
 	}
 
@@ -291,11 +317,14 @@ func (h *Handler) CancelPage(w http.ResponseWriter, r *http.Request) {
 	cancelPageProps := renderer.NewCancelPageProps(basePageProps)
 	bytes, err := h.render.Cancel(cancelPageProps)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Cant render the cancel page at the moment. Please reach out to support so we can resolve this issue.", http.StatusInternalServerError)
 		return
 	}
 
 	w.Write(bytes)
+
+	infoMsg := fmt.Sprintf("User (%s) has started cancellation flow", user.ID)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
@@ -307,7 +336,7 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if user == nil {
-		noCacheRedirect(w, r)
+		h.Logout(w, r)
 		return
 	}
 
@@ -337,11 +366,20 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 		},
 	}
 
-	s, _ := checkoutsession.New(params)
+	s, err := checkoutsession.New(params)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not generate new checkout session for user (%s)", user.ID)
+		h.logger.Error(errMsg)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	// handle error?
 
 	// Then redirect to the URL on the Checkout Session
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
+
+	infoMsg := fmt.Sprintf("User (%s) initiated checkout", user.ID)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Request) {
@@ -352,15 +390,21 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 	}
 
 	if user == nil {
-		noCacheRedirect(w, r)
-		// do something
+		// session no longer belongs to user. Destroy session
+		h.Logout(w, r)
 		return
 	}
 
-	user, _ = h.service.GetUserByID(user.ID)
+	user, err = h.service.GetUserByID(user.ID)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
-	stripeKey := os.Getenv("STRIPE_API_KEY")
+	stripeKey := os.Getenv(STRIPE_API_KEY)
 	if stripeKey == "" {
+		h.logger.Error("Cant access stripe api key from ENV")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		// do something
 		return
 	}
@@ -374,60 +418,84 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 
 	s, err := billingportalsession.New(params)
 	if err != nil {
-		log.Printf("Failed to create a billing portal session")
+		h.logger.Error("Failed to create a billing portal session")
 		http.Error(w, "There was a problem connecting with our payment provider. Please try again later", http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, s.URL, http.StatusSeeOther)
+
+	infoMsg := fmt.Sprintf("User (%s) visited their billing portal", user.ID)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		h.logger.Warning("Received a http method to webhook that wasn't POST")
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
+
 	stripeKey := os.Getenv("STRIPE_API_KEY")
 	if stripeKey == "" {
-		http.Error(w, "could not get stripe key from env", http.StatusInternalServerError)
+		h.logger.Warning("Can not get stripe key from env")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
 	stripe.Key = stripeKey
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("bad request from stripe")
+		h.logger.Error("Bad request from stripe")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	stripeWebhookSecret := os.Getenv(STRIPE_WEBHOOK_SECRET)
 	if stripeWebhookSecret == "" {
-		http.Error(w, "could not find stripe webhook secret in env", http.StatusInternalServerError)
+		h.logger.Error("Can not find stripe webhook secret in env")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	event, err := webhook.ConstructEvent(b, r.Header.Get("Stripe-Signature"), stripeWebhookSecret)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Printf("webhook.ConstructEvent: %v", err)
+		errMsg := fmt.Sprintf("webhook.ConstructEvent: %v", err)
+		h.logger.Error(errMsg)
 		return
 	}
 
 	// TODO add writeheaders before the returns in this switch statement
 	switch event.Type {
 	case "checkout.session.completed":
-		log.Println("Handling checkout.session.completed event for completed checkouts.")
+		h.logger.Info("Handling checkout.session.completed event for completed checkouts.")
 
 		var checkoutSession stripe.CheckoutSession
 
 		err = json.Unmarshal(event.Data.Raw, &checkoutSession)
 		if err != nil {
-			log.Println("Error unmarshalling checkout.session.completed webhook")
+			h.logger.Error("Error unmarshalling checkout.session.completed webhook")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("Customer (%s) completed checkout", checkoutSession.Customer.Email)
+		user, err := h.service.GetUserByEmail(checkoutSession.Customer.Email)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if user == nil {
+			h.logger.Warning("Checkout session wasc ompleted but customer email does not match any users")
+		}
+
+		infoMsg := fmt.Sprintf("Customer (%s) completed checkout", checkoutSession.Customer.Email)
+		h.logger.Info(infoMsg)
+
+		fmt.Println("testing if customer email is included in the checkout session completed webhook", checkoutSession.Customer.Email)
+		fmt.Println("testing checkout session completed webhook to se  if payment status == paid", checkoutSession.PaymentStatus)
+
 		w.WriteHeader(http.StatusOK)
 		return
 
@@ -436,7 +504,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		var invoice stripe.Invoice
 		err := json.Unmarshal(event.Data.Raw, &invoice)
 		if err != nil {
-			log.Printf("Failed to parse invoice paid webhook")
+			h.logger.Error("Failed to parse invoice paid webhook")
 			return
 		}
 
@@ -445,69 +513,67 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		user, err := h.service.GetUserByEmail(customerEmail)
 		if err != nil {
-			log.Println("error finding customer by customer email")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
-			log.Println("no customer by that email address")
+			h.logger.Warning("Invoice paid webhook was called but the email address on the invoice did not return a user")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		userDoesNotAlreadyHaveAStripeID := user.StripeCustomerID == ""
-		if userDoesNotAlreadyHaveAStripeID {
+		if user.StripeCustomerID == "" {
 			err = h.service.AddStripeIDToUser(user.ID, customerID)
 			if err != nil {
 				// URGENT TODO will need a notification for this
-				log.Printf("customer with ID of %s paid invoice but customer ID could not be addedto user", customerID)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
+				warningMsg := fmt.Sprintf("customer with ID of %s paid invoice but customer ID could not be addedto user (%s)", customerID, user.ID)
+				h.logger.Warning(warningMsg)
 			}
 		}
 		// TODO find a way to handle this better
 
 		err = h.service.UpdateUserPaymentStatus(user.ID, true)
 		if err != nil {
-			log.Printf("customer %s paid their invoice but could not update the user record", customerID)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			warningMsg := fmt.Sprintf("customer %s paid their invoice but could not update the user (%s) record", customerID, user.ID)
+			h.logger.Warning(warningMsg)
 		}
 
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "invoice.payment_failed":
-		log.Println("Handling invoice.payment_failed event for failed payments.")
+		h.logger.Info("Handling invoice.payment_failed event for failed payments.")
 
 		var invoice stripe.Invoice
 
 		err := json.Unmarshal(event.Data.Raw, &invoice)
 		if err != nil {
-			log.Printf("Failed to unmarshal invoice.payment_failed webhook")
+			h.logger.Error("Failed to unmarshal invoice.payment_failed webhook")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		customerStripeID := invoice.Customer.ID
 		if customerStripeID == "" {
-			log.Println("cant get customer id from invoice.payment_failed webhook data")
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			h.logger.Error("cant get customer id from invoice.payment_failed webhook data")
 		}
 
-		log.Printf("invoice payment failed for customer ID: %s \n", customerStripeID)
+		if customerStripeID != "" {
+			infoMsg := fmt.Sprintf("invoice payment failed for customer ID: %s \n", customerStripeID)
+			h.logger.Info(infoMsg)
+		}
 
+		// TODO maybe add get user by email fallback
 		user, err := h.service.GetUserByStripeID(customerStripeID)
 		if err != nil {
-			log.Println("error searching for customer by stripe ID")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
-			log.Println("could not find matching user for that stripe ID")
+			warningMsg := fmt.Sprintf("invoice payment failed could not find matching user for that stripe ID (%s)", customerStripeID)
+			h.logger.Warning(warningMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -515,71 +581,69 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		// deactivate user premium status
 		err = h.service.UpdateUserPaymentStatus(user.ID, false)
 		if err != nil {
-			log.Println("could not update customer payment status")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("downgraded plan for user: %s", user.Email)
+		infoMsg := fmt.Sprintf("downgraded plan for user: %s", user.Email)
+		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "customer.subscription.updated":
 		// Check subscription.items.data[0].price attribute and grant/revoke access accordingly.
-		log.Println("Handling customer.subscription.updated event for price changes.")
+		h.logger.Info("Handling customer.subscription.updated event for price changes.")
 		// cancel plan in customer billing portal triggers this event first
-		log.Println(event.Data.Object)
-
 		var customer stripe.Customer
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			log.Println("Failed to parse customer.subscription.updated webhook")
+			h.logger.Error("Failed to parse customer.subscription.updated webhook")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
-			log.Println("Error trying to get customer by stripe ID")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
-			log.Println("No user by that stripe ID")
+			warningMsg := fmt.Sprintf("Customer subscription updated but No user by that stripe ID (%s)", customer.ID)
+			h.logger.Warning(warningMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("Customer: %s updated subscription", customer.Email)
+		infoMsg := fmt.Sprintf("User (%s) updated subscription", user.ID)
+		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "customer.subscription.deleted":
 		// after the remaining days remining on the cancelled plan have elapsed, i assume this webhook gets called
 		// Revoke customer's access to the product.
-		log.Println("Handling customer.subscription.deleted event for subscription cancellations.")
+		h.logger.Info("Handling customer.subscription.deleted event for subscription cancellations.")
 
 		var customer stripe.Customer
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			log.Println("Could not unmarshal event data to customer struct")
+			h.logger.Error("Could not unmarshal event data to customer struct")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		customerID := customer.ID
 		if customerID == "" {
-			log.Printf("cant get customer if from webhook event data")
+			h.logger.Error("cant get customer if from webhook event data")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		err = h.service.UpdateUserPaymentStatus(customerID, false)
 		if err != nil {
-			log.Printf("Could not set is_paid_user to false, subscription deleted")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -589,37 +653,38 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	case "customer.subscription.paused":
 		// Revoke customer's access until subscription resumes.
-		log.Println("Handling customer.subscription.paused event for paused subscriptions.")
+		h.logger.Info("Handling customer.subscription.paused event for paused subscriptions.")
 
 		var customer stripe.Customer
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			log.Println("Error unmarshalling customer.subscription.paused webhook")
+			h.logger.Error("Error unmarshalling customer.subscription.paused webhook")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
-			log.Println("Error getting customer by stripe ID")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
-			log.Printf("no user exists with the ID of %s", customer.ID)
+			warningmsg := fmt.Sprintf("no user exists with the stripe ID of %s", customer.ID)
+			h.logger.Warning(warningmsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("User (%s) paused their subscription", user.Email)
+		infoMsg := fmt.Sprintf("User (%s) paused their subscription", user.ID)
+		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "customer.subscription.resumed":
 		// Grant customer access when subscription resumes.
-		log.Println("Handling customer.subscription.resumed event for resumed subscriptions.")
+		h.logger.Info("Handling customer.subscription.resumed event for resumed subscriptions.")
 
 		var customer stripe.Customer
 
