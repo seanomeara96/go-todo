@@ -69,6 +69,7 @@ func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// POST /login
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, USER_SESSION)
 	user, err := h.getUserFromSession(session, err)
@@ -92,15 +93,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 
-	infoMsg := fmt.Sprintf("User (%s) attempted login", email)
-	h.logger.Info(infoMsg)
-
 	user, userErrors, err := h.service.Login(email, password)
 	if err != nil {
 		http.Error(w, "error logging user in", http.StatusInternalServerError)
 		return
 	}
-	if user == nil {
+
+	if userErrors != nil {
 		loginFormProps := renderer.NewLoginFormProps(userErrors.EmailErrors, userErrors.PasswordErrors)
 		basePageProps := renderer.NewBasePageProps(nil)
 		todoListProps := renderer.NewTodoListProps([]*models.Todo{}, false)
@@ -110,14 +109,23 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not render homepage", http.StatusInternalServerError)
 			return
 		}
+
 		w.Write(bytes)
+
+		user, _ := h.service.GetUserByEmail(email)
+		if user != nil {
+			infoMsg := fmt.Sprintf("User (%s) attempted login but failed", user.ID)
+			h.logger.Info(infoMsg)
+		}
+
 		return
 	}
+
 	session.Values["user"] = user.ID
 	session.Save(r, w)
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 
-	infoMsg = fmt.Sprintf("User (%s) logged in", user.Email)
+	infoMsg := fmt.Sprintf("Session created for user (%s) logged in", user.ID)
 	h.logger.Info(infoMsg)
 }
 
@@ -132,13 +140,14 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	err = h.store.Delete(r, w, session)
 	if err != nil {
 		h.logger.Error("Could not delete user session")
+		h.logger.Debug(err.Error())
 		http.Error(w, "could not delete session", http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
 
-	infoMsg := fmt.Sprintf("User (%s) logged out", user.ID)
+	infoMsg := fmt.Sprintf("Session deleted for user (%s)", user.ID)
 	h.logger.Info(infoMsg)
 }
 
@@ -230,7 +239,7 @@ func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(upgradePageBytes)
 
-	infoMsg := fmt.Sprintf("User (%s) went to the upgrade page", user.ID)
+	infoMsg := fmt.Sprintf("User (%s) started upgrade flow", user.ID)
 	h.logger.Info(infoMsg)
 }
 
@@ -476,6 +485,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &checkoutSession)
 		if err != nil {
 			h.logger.Error("Error unmarshalling checkout.session.completed webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -505,6 +515,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err := json.Unmarshal(event.Data.Raw, &invoice)
 		if err != nil {
 			h.logger.Error("Failed to parse invoice paid webhook")
+			h.logger.Debug(err.Error())
 			return
 		}
 
@@ -550,6 +561,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err := json.Unmarshal(event.Data.Raw, &invoice)
 		if err != nil {
 			h.logger.Error("Failed to unmarshal invoice.payment_failed webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -557,6 +569,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		customerStripeID := invoice.Customer.ID
 		if customerStripeID == "" {
 			h.logger.Error("cant get customer id from invoice.payment_failed webhook data")
+			h.logger.Debug(err.Error())
 		}
 
 		if customerStripeID != "" {
@@ -585,7 +598,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		infoMsg := fmt.Sprintf("downgraded plan for user: %s", user.Email)
+		infoMsg := fmt.Sprintf("downgraded plan for user: %s", user.ID)
 		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
@@ -599,6 +612,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
 			h.logger.Error("Failed to parse customer.subscription.updated webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -630,14 +644,15 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			h.logger.Error("Could not unmarshal event data to customer struct")
+			h.logger.Error("Could not unmarshal customer.subscription.deleted data")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		customerID := customer.ID
 		if customerID == "" {
-			h.logger.Error("cant get customer if from webhook event data")
+			h.logger.Error("cant get customer ID from webhook event data")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -659,13 +674,16 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			h.logger.Error("Error unmarshalling customer.subscription.paused webhook")
+			errMsg := fmt.Sprintf("Error unmarshalling customer.subscription.paused webhook: %s", err.Error())
+			h.logger.Error(errMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
+			errMsg := fmt.Sprintf("Customer subscription paused by customer (%s) with no matching user", customer.ID)
+			h.logger.Error(errMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -690,37 +708,42 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			log.Println("Error unmarshalling customer.subscription.resumed webhook")
+			h.logger.Error("Error unmarshalling customer.subscription.resumed webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		user, err := h.service.GetUserByStripeID(customer.ID)
 		if err != nil {
-			log.Println("Error getting customer by stripe ID")
+			errMsg := fmt.Sprintf("Error getting customer by stripe ID (%s)", customer.ID)
+			h.logger.Error(errMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
-			log.Printf("no user exists with the ID of %s", customer.ID)
+			errMsg := fmt.Sprintf("no user exists with the ID of %s", customer.ID)
+			h.logger.Error(errMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("User (%s) resumed their subscription", user.Email)
+		infoMsg := fmt.Sprintf("User (%s) resumed their subscription", user.ID)
+		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "payment_method.attached":
 		// Handle payment method attachment.
-		log.Println("Handling payment_method.attached event for payment method attachment.")
+		h.logger.Info("Handling payment_method.attached event for payment method attachment.")
 
 		var paymentMethod stripe.PaymentMethod
 
 		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
 		if err != nil {
-			log.Println("Error unmarshalling payment_method.attached webhook")
+			h.logger.Error("Error unmarshalling payment_method.attached webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -731,47 +754,52 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	case "payment_method.detached":
 		// Handle payment method detachment.
-		log.Println("Handling payment_method.detached event for payment method detachment.")
+		h.logger.Info("Handling payment_method.detached event for payment method detachment.")
 
 		var paymentMethod stripe.PaymentMethod
 
 		err = json.Unmarshal(event.Data.Raw, &paymentMethod)
 		if err != nil {
-			log.Println("Error unmarshalling payment_method.detached webhook")
+			h.logger.Error("Error unmarshalling payment_method.detached webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("Customer (%s) detached their payment method", paymentMethod.Customer.Email)
+		infoMsg := fmt.Sprintf("Customer (%s) detached their payment method", paymentMethod.Customer.Email)
+		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "customer.updated":
 		// Check and update default payment method information.
-		log.Println("Handling customer.updated event for default payment method updates.")
+		h.logger.Info("Handling customer.updated event for default payment method updates.")
 
 		var customer stripe.Customer
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			log.Println("Error unmarshalling customer.updated webhook")
+			h.logger.Error("Error unmarshalling customer.updated webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("Customer (%s) updated", customer.Email)
+		infoMsg := fmt.Sprintf("Customer (%s) updated", customer.ID)
+		h.logger.Info(infoMsg)
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "customer.tax_id.created", "customer.tax_id.deleted", "customer.tax_id.updated":
 		// Handle tax ID related events.
-		log.Println("Handling tax ID related event:", event)
+		h.logger.Info("Handling tax ID related event")
 
 		var customer stripe.Customer
 
 		err = json.Unmarshal(event.Data.Raw, &customer)
 		if err != nil {
-			log.Println("Error unmarshalling customer.tax_id.created webhook")
+			h.logger.Error("Error unmarshalling customer.tax_id.created webhook")
+			h.logger.Debug(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -782,17 +810,19 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	case "billing_portal.configuration.created", "billing_portal.configuration.updated":
 		// Handle billing portal configuration events.
-		log.Println("Handling billing portal configuration event:", event)
+		h.logger.Info("Handling billing portal configuration event")
 		w.WriteHeader(http.StatusOK)
 		return
 
 	case "billing_portal.session.created":
 		// Handle billing portal session creation.
-		log.Println("Handling billing portal session created event.")
+		h.logger.Info("Handling billing portal session created event.")
 		w.WriteHeader(http.StatusOK)
 		return
 
 	default:
+		warningMsg := fmt.Sprintf("Unknown event type sent to webhook endpoint: %s", event.Type)
+		h.logger.Warning(warningMsg)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 		// something else happened
@@ -824,7 +854,7 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.service.CreateTodo(user.ID, r.FormValue("description"))
+	lastInsertedTodo, err := h.service.CreateTodo(user.ID, r.FormValue("description"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -849,7 +879,11 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not render todo", http.StatusInternalServerError)
 		return
 	}
+
 	w.Write(todoList)
+
+	infoMsg := fmt.Sprintf("User (%s) added a todo (%d)", user.ID, lastInsertedTodo.ID)
+	h.logger.Info(infoMsg)
 }
 func (h *Handler) UpdateTodoDescription(w http.ResponseWriter, r *http.Request) {}
 func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
@@ -860,7 +894,7 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-		http.Error(w, "user must be logged in", http.StatusForbidden)
+		h.Logout(w, r)
 		return
 	}
 
@@ -916,6 +950,9 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(todoListBytes)
+
+	infoMsg := fmt.Sprintf("User (%s) removed todo (%s)", user.ID, todoIDString)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) {
@@ -926,7 +963,7 @@ func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-		http.Error(w, "user must be logged in", http.StatusForbidden)
+		h.Logout(w, r)
 		return
 	}
 
@@ -967,6 +1004,9 @@ func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(todoBytes)
+
+	infoMsg := fmt.Sprintf("User (%s) updated todo (%d) to status: %v", user.ID, todo.ID, todo.IsComplete)
+	h.logger.Info(infoMsg)
 }
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -982,7 +1022,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// TODO sanitize and clean input
 
-	_, userErrors, err := h.service.NewUser(name, email, password)
+	newUser, userErrors, err := h.service.NewUser(name, email, password)
 	if userErrors != nil {
 		basePageProps := renderer.NewBasePageProps(nil)
 		signUpFormProps := renderer.NewSignupFormProps(userErrors.UsernameErrors, userErrors.EmailErrors, userErrors.PasswordErrors)
@@ -1002,6 +1042,9 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+
+	infoMsg := fmt.Sprintf("New user (%s) created", newUser.ID)
+	h.logger.Info(infoMsg)
 }
 
 // func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {

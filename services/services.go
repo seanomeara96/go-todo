@@ -6,7 +6,6 @@ import (
 	"go-todo/models"
 	"go-todo/repositories"
 	"html"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -14,6 +13,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const DefaultLimit = 10
 
 type internalError error
 type clientError *ClientError
@@ -77,7 +78,10 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 	}
 
 	user = models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPaidUser)
-	log.Printf("User (%s) logged in successfully", user.Email)
+
+	infoMsg := fmt.Sprintf("User (%s) successfully authenticated", userRecord.ID)
+	s.logger.Info(infoMsg)
+
 	return &user, nil, nil
 }
 
@@ -97,16 +101,43 @@ func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 	}
 
 	todo.ID = lastInsertedTodoID
+
+	infoMsg := fmt.Sprintf("User (%s) successfully created new todo (%d)", userID, todo.ID)
+	s.logger.Info(infoMsg)
+
 	return &todo, nil
 }
 
 func (s *Service) GetUserTodoList(userID string) ([]*models.Todo, error) {
-	todoList, err := s.repo.GetAllTodosByUserID(userID)
+	user, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		errMsg := fmt.Sprintf("Could not get all todos for user ID (%s)", userID)
+		errMsg := fmt.Sprintf("Something went wrong look for user by ID (%s)", user.ID)
 		s.logger.Error(errMsg)
+		return nil, err
 	}
-	return todoList, err
+
+	if user == nil {
+		errMsg := fmt.Sprintf("Could not find user (%s)", user.ID)
+		s.logger.Error(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	limit := DefaultLimit
+	if user.IsPaidUser {
+		limit = 0
+	}
+
+	todoList, err := s.repo.GetTodosByUserID(userID, limit)
+	if err != nil {
+		errMsg := fmt.Sprintf("Could not get todos for user ID (%s)", userID)
+		s.logger.Error(errMsg)
+		return nil, err
+	}
+
+	infoMsg := fmt.Sprintf("User (%s) successfully retrieved  their todo list", userID)
+	s.logger.Info(infoMsg)
+
+	return todoList, nil
 }
 
 func (s *Service) GetTodoByID(ID int, userID string) (*models.Todo, clientError, internalError) {
@@ -124,6 +155,10 @@ func (s *Service) GetTodoByID(ID int, userID string) (*models.Todo, clientError,
 		s.logger.Warning(warningMsg)
 		return nil, NewClientError("User not authorized", http.StatusUnauthorized), nil
 	}
+
+	infoMsg := fmt.Sprintf("User (%s) successfully retrieved todo (%d)", userID, ID)
+	s.logger.Info(infoMsg)
+
 	return todo, nil, nil
 }
 
@@ -152,6 +187,10 @@ func (s *Service) DeleteTodo(todoID int, userID string) (clientError, internalEr
 		s.logger.Error(errMsg)
 		return nil, err
 	}
+
+	infoMsg := fmt.Sprintf("User (%s) succesfully deleted  todo (%d)", userID, todoID)
+	s.logger.Info(infoMsg)
+
 	return nil, nil
 }
 
@@ -160,8 +199,13 @@ func (s *Service) DeleteAllTodosByUserID(userID string) internalError {
 	if err != nil {
 		errMsg := fmt.Sprintf("Could not delete all todos for user (%s)", userID)
 		s.logger.Error(errMsg)
+		return err
 	}
-	return err
+
+	infoMsg := fmt.Sprintf("User (%s) successfully deleted all their todos", userID)
+	s.logger.Info(infoMsg)
+
+	return nil
 }
 
 func (s *Service) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool) internalError {
@@ -169,8 +213,13 @@ func (s *Service) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete bool
 	if err != nil {
 		errMsg := fmt.Sprintf("Could not delete all todos for user (%s) where completed = %v", userID, IsComplete)
 		s.logger.Error(errMsg)
+		return err
 	}
-	return err
+
+	infoMsg := fmt.Sprintf("User (%s) deleted all their todos with status %v", userID, IsComplete)
+	s.logger.Info(infoMsg)
+
+	return nil
 }
 
 func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, clientError, internalError) {
@@ -200,7 +249,7 @@ func (s *Service) UpdateTodoStatus(userID string, todoID int) (*models.Todo, cli
 
 	internalErr = s.repo.UpdateTodo(*todo)
 	if internalErr != nil {
-		errMsg := fmt.Sprintf("Could not todo (%d)", todoID)
+		errMsg := fmt.Sprintf("User (%s) could update not todo (%d)", userID, todoID)
 		s.logger.Error(errMsg)
 		return nil, nil, internalErr
 	}
@@ -281,7 +330,8 @@ func (s *Service) NewUser(username, email, password string) (*models.User, *user
 		userToInsert.IsPaidUser,
 	)
 
-	log.Printf("User (%s) created successfully", user.Email)
+	infoMsg := fmt.Sprintf("User (%s) created successfully", user.ID)
+	s.logger.Info(infoMsg)
 	return &user, nil, nil
 }
 
@@ -293,7 +343,7 @@ func (s *Service) UserCanCreateNewTodo(user *models.User, list []*models.Todo) (
 		return false, internalErr
 	}
 
-	canCreateNewTodo := (!userIsPaidUser && len(list) < 10) || userIsPaidUser
+	canCreateNewTodo := (!userIsPaidUser && len(list) < DefaultLimit) || userIsPaidUser
 
 	return canCreateNewTodo, nil
 }
@@ -304,6 +354,8 @@ func (s *Service) AddStripeIDToUser(userID, stripeID string) internalError {
 		errMsg := fmt.Sprintf("Could not add stripe customer id to user (%s)", userID)
 		s.logger.Error(errMsg)
 	}
+	infoMsg := fmt.Sprintf("Stripe ID (%s) added to user (%s)", stripeID, userID)
+	s.logger.Info(infoMsg)
 	return internalErr
 }
 
@@ -340,8 +392,12 @@ func (s *Service) UpdateUserPaymentStatus(userID string, isPaidUser bool) intern
 	if internalErr != nil {
 		errMsg := fmt.Sprintf("Could not update user (%s) paymennt status to %v", userID, isPaidUser)
 		s.logger.Error(errMsg)
+		return internalErr
 	}
-	return internalErr
+
+	infoMsg := fmt.Sprintf("Payment status for user (%s) successfully updated to %v", userID, isPaidUser)
+	s.logger.Info(infoMsg)
+	return nil
 }
 
 func (s *Service) UserIsPaidUser(userID string) (bool, error) {

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"database/sql"
 	"fmt"
 	"go-todo/models"
 )
@@ -43,15 +44,24 @@ func (r *Repository) GetTodoByID(ID int) (*models.Todo, error) {
 	return &todo, nil
 }
 
-func (r *Repository) GetAllTodosByUserID(userID string) ([]*models.Todo, error) {
-	stmt, err := r.db.Prepare(`SELECT id, user_id, description, is_complete FROM todos WHERE user_id = ?`)
+func (r *Repository) GetTodosByUserID(userID string, limit int) ([]*models.Todo, error) {
+	query := `SELECT id, user_id, description, is_complete FROM todos WHERE user_id = ?`
+	if limit > 0 {
+		query += ` limit ?`
+	}
+	stmt, err := r.db.Prepare(query)
 	if err != nil {
 		r.logger.Debug(err.Error())
 		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(userID)
+	var rows *sql.Rows
+	if limit > 0 {
+		rows, err = stmt.Query(userID, limit)
+	} else {
+		rows, err = stmt.Query(userID)
+	}
 	if err != nil {
 		r.logger.Debug(err.Error())
 		return nil, err

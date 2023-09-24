@@ -83,7 +83,7 @@ func main() {
 	r.HandleFunc("/manage-subscription", handler.CreateCustomerPortalSession).Methods(http.MethodGet)
 	r.HandleFunc("/webhook", handler.HandleStripeWebhook).Methods(http.MethodPost)
 
-	log.Println("Server started. Listening on http://localhost:3000")
-	log.Fatal(http.ListenAndServe(":3000", r))
+	logger.Info("Server started. Listening on http://localhost:3000")
+	logger.Error(http.ListenAndServe(":3000", r).Error())
 	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }
