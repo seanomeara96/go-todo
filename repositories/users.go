@@ -7,14 +7,16 @@ import (
 func (r *Repository) SaveUser(user models.UserRecord) error {
 	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_paid_user) VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(&user.ID, &user.Name, &user.Email, &user.Password, &user.IsPaidUser)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return err
 	}
 	return nil
@@ -23,7 +25,8 @@ func (r *Repository) SaveUser(user models.UserRecord) error {
 func (r *Repository) GetUserByID(ID string) (*models.User, error) {
 	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user, customer_stripe_id FROM users WHERE id = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	defer stmt.Close()
@@ -34,7 +37,8 @@ func (r *Repository) GetUserByID(ID string) (*models.User, error) {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
 		}
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	return &user, nil
@@ -43,7 +47,8 @@ func (r *Repository) GetUserByID(ID string) (*models.User, error) {
 func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
 	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user, customer_stripe_id FROM users WHERE email = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	defer stmt.Close()
@@ -54,7 +59,8 @@ func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
 		}
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	return &user, nil
@@ -63,7 +69,8 @@ func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
 func (r *Repository) UserEmailExists(email string) (bool, error) {
 	stmt, err := r.db.Prepare(`SELECT email FROM users WHERE email = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return false, err
 	}
 	defer stmt.Close()
@@ -74,7 +81,8 @@ func (r *Repository) UserEmailExists(email string) (bool, error) {
 		if err.Error() == "sql: no rows in result set" {
 			return false, nil
 		}
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return false, err
 	}
 	return true, nil
@@ -83,7 +91,8 @@ func (r *Repository) UserEmailExists(email string) (bool, error) {
 func (r *Repository) GetUserByStripeID(customerStripeID string) (*models.User, error) {
 	stmt, err := r.db.Prepare(`SELECT id, name, email, is_paid_user, customer_stripe_id FROM users WHERE customer_stripe_id = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	defer stmt.Close()
@@ -94,7 +103,8 @@ func (r *Repository) GetUserByStripeID(customerStripeID string) (*models.User, e
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
 		}
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	return &user, nil
@@ -103,14 +113,16 @@ func (r *Repository) GetUserByStripeID(customerStripeID string) (*models.User, e
 func (r *Repository) AddStripeIDToUser(userID, stripeID string) error {
 	stmt, err := r.db.Prepare(`UPDATE users SET customer_stripe_id = ? WHERE id = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(stripeID, userID)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return err
 	}
 	return nil
@@ -119,14 +131,16 @@ func (r *Repository) AddStripeIDToUser(userID, stripeID string) error {
 func (r *Repository) UpdateUserPaymentStatus(userID string, isPaidUser bool) error {
 	stmt, err := r.db.Prepare(`UPDATE users SET is_paid_user = ? WHERE id = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(isPaidUser, userID)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return err
 	}
 	return nil
@@ -135,7 +149,8 @@ func (r *Repository) UpdateUserPaymentStatus(userID string, isPaidUser bool) err
 func (r *Repository) UserIsPaidUser(userID string) (bool, error) {
 	stmt, err := r.db.Prepare(`SELECT is_paid_user FROM users WHERE id = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return false, err
 	}
 	defer stmt.Close()
@@ -143,7 +158,8 @@ func (r *Repository) UserIsPaidUser(userID string) (bool, error) {
 	var isPaidUser bool
 	err = stmt.QueryRow(userID).Scan(&isPaidUser)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return false, err
 	}
 	return isPaidUser, nil
@@ -152,7 +168,8 @@ func (r *Repository) UserIsPaidUser(userID string) (bool, error) {
 func (r *Repository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {
 	stmt, err := r.db.Prepare(`SELECT id, name, email, password, is_paid_user FROM users WHERE email = ?`)
 	if err != nil {
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	defer stmt.Close()
@@ -169,7 +186,8 @@ func (r *Repository) GetUserRecordByEmail(email string) (*models.UserRecord, err
 		if err.Error() == "sql: no rows in result set" {
 			return nil, nil
 		}
-		r.logger.Debug(err.Error())
+		debugMsg := fmt.Sprintf("%v", err)
+		r.logger.Debug(debugMsg)
 		return nil, err
 	}
 	return &userRecord, nil
