@@ -4,6 +4,8 @@ import (
 	"go-todo/models"
 )
 
+const SQLNoResult = "sql: no rows in result set"
+
 func (r *Repository) SaveUser(user models.UserRecord) error {
 	stmt, err := r.db.Prepare(`INSERT INTO users(id, name,  email, password, is_paid_user) VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
@@ -34,7 +36,7 @@ func (r *Repository) GetUserByID(ID string) (*models.User, error) {
 	user := models.User{}
 	err = stmt.QueryRow(ID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser, &user.StripeCustomerID)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == SQLNoResult {
 			return nil, nil
 		}
 		debugMsg := fmt.Sprintf("%v", err)
@@ -56,7 +58,7 @@ func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
 	user := models.User{}
 	err = stmt.QueryRow(email).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser, &user.StripeCustomerID)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == SQLNoResult {
 			return nil, nil
 		}
 		debugMsg := fmt.Sprintf("%v", err)
@@ -78,7 +80,7 @@ func (r *Repository) UserEmailExists(email string) (bool, error) {
 	var matchingEmail string
 	err = stmt.QueryRow(email).Scan(&matchingEmail)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == SQLNoResult {
 			return false, nil
 		}
 		debugMsg := fmt.Sprintf("%v", err)
@@ -100,7 +102,7 @@ func (r *Repository) GetUserByStripeID(customerStripeID string) (*models.User, e
 	user := models.User{}
 	err = stmt.QueryRow(customerStripeID).Scan(&user.ID, &user.Name, &user.Email, &user.IsPaidUser, &user.StripeCustomerID)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == SQLNoResult {
 			return nil, nil
 		}
 		debugMsg := fmt.Sprintf("%v", err)
@@ -183,7 +185,7 @@ func (r *Repository) GetUserRecordByEmail(email string) (*models.UserRecord, err
 		&userRecord.IsPaidUser,
 	)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == SQLNoResult {
 			return nil, nil
 		}
 		debugMsg := fmt.Sprintf("%v", err)
