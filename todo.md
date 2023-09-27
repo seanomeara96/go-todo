@@ -3,4 +3,5 @@
 - design a more elegenat ui with tailwind
 - provision subscription based on webhook
 - add signup user errors
+- add caching
 - launch

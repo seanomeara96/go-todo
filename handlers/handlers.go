@@ -866,12 +866,11 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userIsPayedUser, err := h.service.UserIsPaidUser(user.ID)
+	canCreateNewTodo, err := h.service.UserCanCreateNewTodo(user, list)
 	if err != nil {
-		http.Error(w, "error  determingin user paymnet status", http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	canCreateNewTodo := (!userIsPayedUser && len(list) < 10) || userIsPayedUser
 
 	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
 	todoList, err := h.render.TodoList(todoListProps)

@@ -16,15 +16,37 @@
       integrity="sha384-zUfuhFKKZCbHTY6aRR46gxiqszMk5tcHjsVFxnUo8VMus4kHGVdIYVbOYYNlKmHV"
       crossorigin="anonymous"
     ></script>
+  <style>
+    .vertically-centered-container {
+      position: relative;
+      max-width: 800px;
+      margin: auto;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    header a {
+      display: inline-block;
+      margin-right: 1rem;
+    }
+
+    .page-section {
+      max-width: 1200px;
+      padding-top: 20px;
+      padding-bottom: 20px;
+      margin: auto;
+    }
+
+  </style>
   </head>
   <body>
-  <header>
+  <header class="page-section">
     {{ if.User }}
-      <a href="/logout"><button>Log Out</button></a>
+      <a class="ui button" href="/logout">Log Out</a>
       {{ if not (eq .User.IsPaidUser true) }}
-        <a href="/upgrade"><button>Upgrade</button></a>
+        <a class="ui button" href="/upgrade"><button>Upgrade</button></a>
       {{ else }}
-        <a href="/manage-subscription">Manage Subscription</a>
+        <a class="ui button" href="/manage-subscription">Manage Subscription</a>
       {{end}}
     {{ end }}
   </header>

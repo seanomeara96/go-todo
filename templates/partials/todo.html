@@ -3,7 +3,7 @@
   <div>{{.Description}}</div>
   <div style="display: flex; gap: 1rem">
     <button
-      class="ui button {{ if .IsComplete }}green{{ else }}{{ end }}"
+      class="ui button {{ if .IsComplete }}green{{ end }}"
       hx-post="/todo/update/status/{{.ID}}"
       hx-target="#todo-{{.ID}}"
       hx-swap="outerHTML"

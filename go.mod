@@ -14,5 +14,6 @@ require (
 
 require (
 	github.com/gorilla/securecookie v1.1.1 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 )

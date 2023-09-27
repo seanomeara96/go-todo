@@ -1,20 +1,20 @@
 {{define "todo-list"}}
 <div id="todo-list">
-  <div id="todos" class="ui divided items">
-    {{ range .Todos }} {{ template "todo" .}} {{ end }}
-  </div>
   {{ if .CanCreateNewTodo }}
-  <form
-    hx-post="/todo/add"
-    hx-trigger="submit"
-    hx-target="#todo-list"
-    hx-swap="outerHTML"
-  >
-    <input type="text" name="description" />
-    <input class="ui button" type="submit" value="Submit" />
-  </form>
+    <form
+      hx-post="/todo/add"
+      hx-trigger="submit"
+      hx-target="#todo-list"
+      hx-swap="outerHTML"
+      >
+      <input type="text" name="description" />
+      <input class="ui button" type="submit" value="Submit" />
+    </form>
+    <div id="todos" class="ui divided items">
+      {{ range .Todos }} {{ template "todo" .}} {{ end }}
+    </div>
   {{ else }}
-  <div>Youve reached your limit</div>
+    <div>Youve reached your limit</div>
   {{ end }}
 </div>
 {{end}}

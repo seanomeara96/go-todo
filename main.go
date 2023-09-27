@@ -11,12 +11,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/michaeljs1990/sqlitestore"
+	"github.com/patrickmn/go-cache"
 )
 
 func main() {
@@ -60,8 +62,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	c := cache.New(5*time.Minute, 10*time.Minute)
+
 	logger := logger.NewLogger(0)
-	repository := repositories.NewRepository(db, logger)
+	repository := repositories.NewRepository(db, c, logger)
 	service := services.NewService(repository, logger)
 	renderer := renderer.NewRenderer(tmpl, logger)
 	handler := handlers.NewHandler(service, store, renderer, logger)

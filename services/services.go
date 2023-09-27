@@ -53,7 +53,7 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 		userLoginErrors.EmailErrors = append(userLoginErrors.EmailErrors, "You've provided an invalid email.")
 	}
 
-	userRecord, err := s.repo.GetUserRecordByEmail(email)
+	userRecord, err := s.repo.GetUserByEmail(email)
 	if err != nil {
 		s.logger.Error("Could not get user record by email")
 		return nil, nil, err
@@ -317,7 +317,7 @@ func (s *Service) NewUser(username, email, password string) (*models.User, *user
 		return nil, nil, err
 	}
 
-	userToInsert := models.NewUserRecord(id, username, email, string(hashedpassword), false)
+	userToInsert := models.NewUser(id, username, email, string(hashedpassword), false)
 	err = s.repo.SaveUser(userToInsert)
 	if err != nil {
 		return nil, nil, err
