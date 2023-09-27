@@ -77,7 +77,7 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 		return nil, &userLoginErrors, nil
 	}
 
-	user = models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, userRecord.IsPaidUser)
+	user = models.NewUser(userRecord.ID, userRecord.Name, userRecord.Email, "", userRecord.IsPaidUser, "")
 
 	infoMsg := fmt.Sprintf("User (%s) successfully authenticated", userRecord.ID)
 	s.logger.Info(infoMsg)
@@ -317,7 +317,7 @@ func (s *Service) NewUser(username, email, password string) (*models.User, *user
 		return nil, nil, err
 	}
 
-	userToInsert := models.NewUser(id, username, email, string(hashedpassword), false)
+	userToInsert := models.NewUser(id, username, email, string(hashedpassword), false, "")
 	err = s.repo.SaveUser(userToInsert)
 	if err != nil {
 		return nil, nil, err
@@ -327,7 +327,9 @@ func (s *Service) NewUser(username, email, password string) (*models.User, *user
 		userToInsert.ID,
 		userToInsert.Name,
 		userToInsert.Email,
+		"",
 		userToInsert.IsPaidUser,
+		"",
 	)
 
 	infoMsg := fmt.Sprintf("User (%s) created successfully", user.ID)
