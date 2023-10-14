@@ -36,8 +36,10 @@ func (c *UserCache) getUsersFromCache() []models.User {
 func (c *UserCache) CacheUser(user models.User) {
 	cachedUsers := c.getUsersFromCache()
 
-	for _, cachedUser := range cachedUsers {
-		if user.ID == cachedUser.ID {
+	for i, _ := range cachedUsers {
+		if user.ID == cachedUsers[i].ID {
+			// if the new user has updated properties I want to make sure that its updated
+			cachedUsers[i] = user
 			return
 		}
 	}
