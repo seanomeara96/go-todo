@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"go-todo/cache"
 	"go-todo/logger"
 	"go-todo/models"
 	"go-todo/repositories"
@@ -21,12 +22,14 @@ type clientError *ClientError
 
 type Service struct {
 	repo   *repositories.Repository
+	caches *cache.Caches
 	logger *logger.Logger
 }
 
-func NewService(r *repositories.Repository, logger *logger.Logger) *Service {
+func NewService(r *repositories.Repository, caches *cache.Caches, logger *logger.Logger) *Service {
 	return &Service{
 		repo:   r,
+		caches: caches,
 		logger: logger,
 	}
 }

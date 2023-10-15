@@ -85,6 +85,13 @@ type TodoCache struct {
 	logger *logger.Logger
 }
 
+func NewTodoCache(cache *cache.Cache, logger *logger.Logger) *TodoCache {
+	return &TodoCache{
+		cache:  cache,
+		logger: logger,
+	}
+}
+
 func (c *TodoCache) getTodosFromCache() []models.Todo {
 	todos := []models.Todo{}
 	todoCache, found := c.cache.Get("todos")
@@ -118,4 +125,9 @@ func (c *TodoCache) GetTodoByID(todoID int) *models.Todo {
 		}
 	}
 	return nil
+}
+
+type Caches struct {
+	UserCache *UserCache
+	TodoCache *TodoCache
 }

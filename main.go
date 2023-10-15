@@ -67,16 +67,15 @@ func main() {
 
 	logger := logger.NewLogger(0)
 	userCache := cache.NewUserCache(c, logger)
+	todoCache := cache.NewTodoCache(c, logger)
 
-	type Caches struct {
-		UserCache *cache.UserCache
-	}
-	caches := Caches{
+	caches := &cache.Caches{
 		UserCache: userCache,
+		TodoCache: todoCache,
 	}
 
 	repository := repositories.NewRepository(db, logger)
-	service := services.NewService(repository, logger)
+	service := services.NewService(repository, caches, logger)
 	renderer := renderer.NewRenderer(tmpl, logger)
 	handler := handlers.NewHandler(service, store, renderer, logger)
 
