@@ -109,3 +109,13 @@ func (c *TodoCache) GetTodosByUserID(userID string) []models.Todo {
 	}
 	return userTodos
 }
+
+func (c *TodoCache) GetTodoByID(todoID int) *models.Todo {
+	todos := c.getTodosFromCache()
+	for _, todo := range todos {
+		if todo.ID == todoID {
+			return &todo
+		}
+	}
+	return nil
+}
