@@ -112,15 +112,23 @@ func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 }
 
 func (s *Service) GetUserTodoList(userID string) ([]*models.Todo, error) {
-	user, err := s.repo.GetUserByID(userID)
-	if err != nil {
-		errMsg := fmt.Sprintf("Something went wrong look for user by ID (%s)", user.ID)
-		s.logger.Error(errMsg)
-		return nil, err
+	user := s.caches.UserCache.GetUserByID(userID)
+	if user != nil {
+		s.logger.Info("got user by user cache")
 	}
 
 	if user == nil {
-		errMsg := fmt.Sprintf("Could not find user (%s)", user.ID)
+		u, err := s.repo.GetUserByID(userID)
+		if err != nil {
+			errMsg := fmt.Sprintf("Something went wrong look for user by ID (%s)", user.ID)
+			s.logger.Error(errMsg)
+			return nil, err
+		}
+		user = u
+	}
+
+	if user == nil {
+		errMsg := fmt.Sprintf("Could not find user (%s)", userID)
 		s.logger.Error(errMsg)
 		return nil, fmt.Errorf(errMsg)
 	}

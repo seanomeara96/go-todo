@@ -23,21 +23,25 @@ import (
 )
 
 func main() {
-	logFile, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.SetOutput(logFile)
-	if err != nil {
-		log.Fatalf("Error opening log file: %v", err)
-	}
-	defer logFile.Close()
 
 	// Load environment variables from .env file
-	err = godotenv.Load()
+	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 		// You can choose to handle the error here or exit the program.
+	}
+
+	if os.Getenv("env") == "prod" {
+		logFile, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.SetOutput(logFile)
+		if err != nil {
+			log.Fatalf("Error opening log file: %v", err)
+		}
+		defer logFile.Close()
+
 	}
 
 	db, err := sql.Open("sqlite3", "main.db")
