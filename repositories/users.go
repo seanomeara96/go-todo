@@ -186,31 +186,3 @@ func (r *Repository) UserIsPaidUser(userID string) (bool, error) {
 	}
 	return isPaidUser, nil
 }
-
-func (r *Repository) GetUserRecordByEmail(email string) (*models.UserRecord, error) {
-	stmt, err := r.db.Prepare(`SELECT id, name, email, password, is_paid_user FROM users WHERE email = ?`)
-	if err != nil {
-		debugMsg := fmt.Sprintf("%v", err)
-		r.logger.Debug(debugMsg)
-		return nil, err
-	}
-	defer stmt.Close()
-
-	userRecord := models.UserRecord{}
-	err = stmt.QueryRow(email).Scan(
-		&userRecord.ID,
-		&userRecord.Name,
-		&userRecord.Email,
-		&userRecord.Password,
-		&userRecord.IsPaidUser,
-	)
-	if err != nil {
-		if err.Error() == sqlNoResult {
-			return nil, nil
-		}
-		debugMsg := fmt.Sprintf("%v", err)
-		r.logger.Debug(debugMsg)
-		return nil, err
-	}
-	return &userRecord, nil
-}

@@ -79,3 +79,33 @@ func (c *UserCache) GetUserByStripeID(userStripeID string) *models.User {
 	}
 	return nil
 }
+
+type TodoCache struct {
+	cache  *cache.Cache
+	logger *logger.Logger
+}
+
+func (c *TodoCache) getTodosFromCache() []models.Todo {
+	todos := []models.Todo{}
+	todoCache, found := c.cache.Get("todos")
+	if !found {
+		c.cache.Set("todos", todos, cache.DefaultExpiration)
+		return todos
+	}
+	cachedTodos, ok := todoCache.([]models.Todo)
+	if !ok {
+		return todos
+	}
+	return cachedTodos
+}
+
+func (c *TodoCache) GetTodosByUserID(userID string) []models.Todo {
+	todos := c.getTodosFromCache()
+	userTodos := []models.Todo{}
+	for i := 0; i < len(todos); i++ {
+		if todos[i].UserID == userID {
+			userTodos = append(userTodos, todos[i])
+		}
+	}
+	return userTodos
+}
