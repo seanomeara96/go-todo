@@ -55,11 +55,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store.Options = &sessions.Options{
+	sessionOptions := &sessions.Options{
 		Path:     "/",
 		MaxAge:   60 * 15,
 		HttpOnly: true,
 	}
+
+	if os.Getenv("env") == "prod" {
+		sessionOptions.Secure = true
+	}
+
+	store.Options = sessionOptions
 
 	templateGlobPath := "./templates/**/*.html"
 	tmpl, err := template.ParseGlob(templateGlobPath)
@@ -69,7 +75,12 @@ func main() {
 
 	c := goCache.New(5*time.Minute, 10*time.Minute)
 
-	logger := logger.NewLogger(0)
+	var logLevel logger.LogLevel = 0
+	if os.Getenv("env") == "prod" {
+		logLevel = 1
+	}
+	logger := logger.NewLogger(logLevel)
+
 	userCache := cache.NewUserCache(c, logger)
 	todoCache := cache.NewTodoCache(c, logger)
 
