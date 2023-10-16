@@ -90,9 +90,18 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 	return &user, nil, nil
 }
 
-func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
+type createTodoClientErrors struct {
+	DescriptionErrors []string
+}
+
+func (s *Service) CreateTodo(userID, description string) (*models.Todo, *createTodoClientErrors, error) {
+	clientErrors := createTodoClientErrors{}
 	if description == "" {
-		return nil, fmt.Errorf("cannot supply an empty description")
+		clientErrors.DescriptionErrors = append(clientErrors.DescriptionErrors, "cannot supply an empty description")
+	}
+
+	if len(clientErrors.DescriptionErrors) > 0 {
+		return nil, &clientErrors, nil
 	}
 
 	sanitizedDescription := html.EscapeString(description)
@@ -102,7 +111,7 @@ func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 	lastInsertedTodoID, err := s.repo.CreateTodo(&todo)
 	if err != nil {
 		s.logger.Error("Could not create new Todo item")
-		return nil, err
+		return nil, nil, err
 	}
 
 	todo.ID = lastInsertedTodoID
@@ -110,7 +119,7 @@ func (s *Service) CreateTodo(userID, description string) (*models.Todo, error) {
 	infoMsg := fmt.Sprintf("User (%s) successfully created new todo (%d)", userID, todo.ID)
 	s.logger.Info(infoMsg)
 
-	return &todo, nil
+	return &todo, nil, nil
 }
 
 func (s *Service) GetUserTodoList(userID string) ([]*models.Todo, error) {

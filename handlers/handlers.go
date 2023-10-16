@@ -854,8 +854,10 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lastInsertedTodo, err := h.service.CreateTodo(user.ID, r.FormValue("description"))
-	if err != nil {
+	// TODO render client errors
+	lastInsertedTodo, _, err := h.service.CreateTodo(user.ID, r.FormValue("description"))
+	// TODO for now i am returning an error if todo is nil
+	if err != nil || lastInsertedTodo == nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
