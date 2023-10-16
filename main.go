@@ -83,7 +83,10 @@ func main() {
 	renderer := renderer.NewRenderer(tmpl, logger)
 	handler := handlers.NewHandler(service, store, renderer, logger)
 
+	fs := http.FileServer(http.Dir("assets"))
+
 	r := mux.NewRouter()
+	r.Handle("/assets/", http.StripPrefix("/assets/", fs))
 	r.HandleFunc("/", handler.HomePage).Methods(http.MethodGet)
 	r.HandleFunc("/signup", handler.SignupPage).Methods(http.MethodGet)
 	r.HandleFunc("/signup", handler.CreateUser).Methods(http.MethodPost)
