@@ -73,6 +73,8 @@ func (s *Service) Login(email string, password string) (*models.User, *userLogin
 	err = bcrypt.CompareHashAndPassword([]byte(userRecord.Password), []byte(password))
 
 	if err != nil {
+		errMsg := fmt.Sprintf("bcrypt compare threw error: %v", err)
+		s.logger.Error(errMsg)
 		userLoginErrors.PasswordErrors = append(userLoginErrors.PasswordErrors, "Incorrect Password")
 	}
 

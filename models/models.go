@@ -28,6 +28,7 @@ func NewUser(ID string, name string, email string, password string, isPaidUser b
 		ID:               ID,
 		Name:             name,
 		Email:            email,
+		Password:         password,
 		IsPaidUser:       isPaidUser,
 		StripeCustomerID: stripeCustomerID,
 	}
