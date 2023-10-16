@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"go-todo/cache"
 	"go-todo/handlers"
 	"go-todo/logger"
@@ -9,6 +10,7 @@ import (
 	"go-todo/repositories"
 	"go-todo/services"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -31,28 +33,63 @@ func main() {
 		// You can choose to handle the error here or exit the program.
 	}
 
-	if os.Getenv("env") == "prod" {
-		logFile, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	environment := os.Getenv("ENV")
+
+	var logLevel logger.LogLevel = 0
+	if environment == "prod" {
+		logLevel = 1
+	}
+
+	logger := logger.NewLogger(logLevel)
+
+	if environment == "prod" {
+		fileName := "app.log"
+		flag := os.O_APPEND | os.O_CREATE | os.O_WRONLY
+		fileMode := fs.FileMode(0644)
+		logFile, err := os.OpenFile(fileName, flag, fileMode)
 		if err != nil {
-			log.Fatal(err)
+			errMsg := fmt.Sprintf("Could not open file app.log %v", err)
+			logger.Error(errMsg)
 		}
+
 		log.SetOutput(logFile)
 		if err != nil {
-			log.Fatalf("Error opening log file: %v", err)
+			errMsg := fmt.Sprintf("Error opening log file: %v", err)
+			logger.Error(errMsg)
 		}
 		defer logFile.Close()
-
 	}
 
-	db, err := sql.Open("sqlite3", "main.db")
+	driverName := "sqlite3"
+	dataSourceName := "main.db"
+	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Error connecting to db")
+
+		debugMsg := fmt.Sprintf("attempt to open sqlite3 connection returned %v", err)
+		logger.Debug(debugMsg)
+
+		return
 	}
 
-	secretKey := []byte(os.Getenv("SECRET_KEY"))
-	store, err := sqlitestore.NewSqliteStore("./sessions.db", "sessions", "/", 3600, secretKey)
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		logger.Warning("Did not find a secret key in env vars")
+	}
+
+	endpoint := "./sessions.db"
+	tableName := "sessions"
+	path := "/"
+	maxAge := 3600
+	keyPairs := []byte(secretKey)
+	store, err := sqlitestore.NewSqliteStore(endpoint, tableName, path, maxAge, keyPairs)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Could not connect to session store")
+
+		debugMsg := fmt.Sprintf("sqlitestore.NewSqliteStore returned %v", err)
+		logger.Debug(debugMsg)
+
+		return
 	}
 
 	sessionOptions := &sessions.Options{
@@ -61,7 +98,7 @@ func main() {
 		HttpOnly: true,
 	}
 
-	if os.Getenv("env") == "prod" {
+	if environment == "prod" {
 		sessionOptions.Secure = true
 	}
 
@@ -70,16 +107,15 @@ func main() {
 	templateGlobPath := "./templates/**/*.html"
 	tmpl, err := template.ParseGlob(templateGlobPath)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Could not parse templates")
+
+		debugMsg := fmt.Sprintf("template.ParseGlob returned %v", err)
+		logger.Debug(debugMsg)
+
+		return
 	}
 
 	c := goCache.New(5*time.Minute, 10*time.Minute)
-
-	var logLevel logger.LogLevel = 0
-	if os.Getenv("env") == "prod" {
-		logLevel = 1
-	}
-	logger := logger.NewLogger(logLevel)
 
 	userCache := cache.NewUserCache(c, logger)
 	todoCache := cache.NewTodoCache(c, logger)
@@ -114,7 +150,13 @@ func main() {
 	r.HandleFunc("/manage-subscription", handler.CreateCustomerPortalSession).Methods(http.MethodGet)
 	r.HandleFunc("/webhook", handler.HandleStripeWebhook).Methods(http.MethodPost)
 
-	logger.Info("Server started. Listening on http://localhost:3000")
-	logger.Error(http.ListenAndServe(":3000", r).Error())
+	port := os.Getenv("PORT")
+	if port == "" {
+		logger.Error("Cant find port in env vars")
+		return
+	}
+
+	logger.Info(fmt.Sprintf("Server started. Listening on http://localhost:%s", port))
+	logger.Error(http.ListenAndServe(":"+port, r).Error())
 	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }
