@@ -41,7 +41,6 @@ func main() {
 	}
 
 	logger := logger.NewLogger(logLevel)
-
 	if environment == "prod" {
 		fileName := "app.log"
 		flag := os.O_APPEND | os.O_CREATE | os.O_WRONLY
