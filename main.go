@@ -66,9 +66,8 @@ func main() {
 	if err != nil {
 		logger.Error("Error connecting to db")
 
-		debugMsg := fmt.Sprintf("attempt to open sqlite3 connection returned %v", err)
+		debugMsg := fmt.Sprintf("sql.Open returned %v", err)
 		logger.Debug(debugMsg)
-
 		return
 	}
 
@@ -88,7 +87,6 @@ func main() {
 
 		debugMsg := fmt.Sprintf("sqlitestore.NewSqliteStore returned %v", err)
 		logger.Debug(debugMsg)
-
 		return
 	}
 
@@ -156,7 +154,7 @@ func main() {
 		return
 	}
 
-	logger.Info(fmt.Sprintf("Server started. Listening on http://localhost:%s", port))
+	logger.Info("Server started. Listening on http://localhost:" + port)
 	logger.Error(http.ListenAndServe(":"+port, r).Error())
 	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }
