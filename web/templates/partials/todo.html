@@ -1,0 +1,23 @@
+{{ define "todo" }}
+<div id="todo-{{.ID}}">
+  <div>{{.Description}}</div>
+  <div style="display: flex; gap: 1rem">
+    <button
+      class="ui button {{ if .IsComplete }}green{{ end }}"
+      hx-post="/todo/update/status/{{.ID}}"
+      hx-target="#todo-{{.ID}}"
+      hx-swap="outerHTML"
+    >
+      {{ if .IsComplete }}Completed{{ else }}Complete{{ end }}
+    </button>
+    <button
+      class="ui button"
+      hx-post="/todo/remove/{{.ID}}"
+      hx-target="#todo-list"
+      hx-swap="outerHTML"
+    >
+      Remove
+    </button>
+  </div>
+</div>
+{{ end }}
