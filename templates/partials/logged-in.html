@@ -1,7 +1,0 @@
-{{ define "logged-in"}}
-<div class="container" style="max-width: 1200px; margin: auto">
-  <h1>{{.User.Name}}'s Todos</h1>
-
-  {{ template "todo-list" .TodoListProps }}
-</div>
-{{ end }}

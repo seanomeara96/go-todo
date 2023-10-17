@@ -3,12 +3,12 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"go-todo/cache"
-	"go-todo/handlers"
-	"go-todo/logger"
-	"go-todo/renderer"
-	"go-todo/repositories"
-	"go-todo/services"
+	"go-todo/internal/cache"
+	"go-todo/internal/handlers"
+	"go-todo/internal/logger"
+	"go-todo/internal/renderer"
+	"go-todo/internal/repositories"
+	"go-todo/internal/services"
 	"html/template"
 	"io/fs"
 	"log"
@@ -101,7 +101,7 @@ func main() {
 
 	store.Options = sessionOptions
 
-	templateGlobPath := "./templates/**/*.html"
+	templateGlobPath := "./web/templates/**/*.html"
 	tmpl, err := template.ParseGlob(templateGlobPath)
 	if err != nil {
 		logger.Error("Could not parse templates")
@@ -130,7 +130,7 @@ func main() {
 	fs := http.FileServer(http.Dir("assets"))
 
 	r := mux.NewRouter()
-	r.Handle("/assets/", http.StripPrefix("/assets/", fs))
+	r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", fs))
 	r.HandleFunc("/", handler.HomePage).Methods(http.MethodGet)
 	r.HandleFunc("/signup", handler.SignupPage).Methods(http.MethodGet)
 	r.HandleFunc("/signup", handler.CreateUser).Methods(http.MethodPost)
