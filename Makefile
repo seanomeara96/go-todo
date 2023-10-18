@@ -13,7 +13,7 @@ BIN_DIR=bin
 all: build
 
 build:
-	$(GOBUILD) -o $(BIN_DIR)/$(BINARY_NAME) cmd/main/main.go
+	$(GOBUILD) -o $(BIN_DIR)/$(BINARY_NAME)/ cmd/main/main.go
 
 clean:
 	$(GOCLEAN)
