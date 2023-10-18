@@ -3,6 +3,7 @@ package cache
 import (
 	"go-todo/internal/logger"
 	"go-todo/internal/models"
+	"time"
 
 	"github.com/patrickmn/go-cache"
 )
@@ -12,9 +13,10 @@ type UserCache struct {
 	logger *logger.Logger
 }
 
-func NewUserCache(cache *cache.Cache, logger *logger.Logger) *UserCache {
+func NewUserCache(defaultExpiration time.Duration, cleanupInterval time.Duration, logger *logger.Logger) *UserCache {
+	c := cache.New(defaultExpiration, cleanupInterval)
 	return &UserCache{
-		cache:  cache,
+		cache:  c,
 		logger: logger,
 	}
 }
@@ -85,9 +87,10 @@ type TodoCache struct {
 	logger *logger.Logger
 }
 
-func NewTodoCache(cache *cache.Cache, logger *logger.Logger) *TodoCache {
+func NewTodoCache(defaultExpiration time.Duration, cleanupInterval time.Duration, logger *logger.Logger) *TodoCache {
+	c := cache.New(defaultExpiration, cleanupInterval)
 	return &TodoCache{
-		cache:  cache,
+		cache:  c,
 		logger: logger,
 	}
 }

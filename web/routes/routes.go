@@ -1,7 +1,15 @@
 package routes
 
-func Router(handler *handlers.Handler){
+import (
+	"go-todo/internal/handlers"
+	"net/http"
+
+	"github.com/gorilla/mux"
+)
+
+func Router(handler *handlers.Handler) *mux.Router {
 	r := mux.NewRouter()
+	fs := http.FileServer(http.Dir("assets"))
 	r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", fs))
 	r.HandleFunc("/", handler.HomePage).Methods(http.MethodGet)
 	r.HandleFunc("/signup", handler.SignupPage).Methods(http.MethodGet)

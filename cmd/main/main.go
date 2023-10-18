@@ -1,27 +1,23 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"go-todo/internal/cache"
+	"go-todo/internal/db"
 	"go-todo/internal/handlers"
 	"go-todo/internal/logger"
 	"go-todo/internal/renderer"
 	"go-todo/internal/repositories"
 	"go-todo/internal/services"
+	"go-todo/web/routes"
+	"go-todo/web/sessionstore"
 	"html/template"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/michaeljs1990/sqlitestore"
-	goCache "github.com/patrickmn/go-cache"
 )
 
 func main() {
@@ -33,89 +29,42 @@ func main() {
 		// You can choose to handle the error here or exit the program.
 	}
 
-	environment := os.Getenv("ENV")
-
-	var logLevel logger.LogLevel = 0
-	if environment == "prod" {
-		logLevel = 1
+	if os.Getenv("ENV") == "" || os.Getenv("PORT") == "" {
+		log.Fatal("Expected a PORT and ENV var")
 	}
 
-	logger := logger.NewLogger(logLevel)
-	if environment == "prod" {
-		fileName := "app.log"
-		flag := os.O_APPEND | os.O_CREATE | os.O_WRONLY
-		fileMode := fs.FileMode(0644)
-		logFile, err := os.OpenFile(fileName, flag, fileMode)
-		if err != nil {
-			errMsg := fmt.Sprintf("Could not open file app.log %v", err)
-			logger.Error(errMsg)
-		}
-
-		log.SetOutput(logFile)
-		if err != nil {
-			errMsg := fmt.Sprintf("Error opening log file: %v", err)
-			logger.Error(errMsg)
-		}
+	var logLevel logger.LogLevel = 0
+	if os.Getenv("ENV") == "prod" {
+		logLevel = 1
+		logFile, _ := logger.SetOutputToFile()
 		defer logFile.Close()
 	}
 
-	driverName := "sqlite3"
-	dataSourceName := "main.db"
-	db, err := sql.Open(driverName, dataSourceName)
+	logger := logger.NewLogger(logLevel)
+
+	db, err := db.Connect()
 	if err != nil {
 		logger.Error("Error connecting to db")
-
-		debugMsg := fmt.Sprintf("sql.Open returned %v", err)
-		logger.Debug(debugMsg)
+		logger.Debug(err.Error())
 		return
 	}
+	defer db.Close()
 
-	secretKey := os.Getenv("SECRET_KEY")
-	if secretKey == "" {
-		logger.Warning("Did not find a secret key in env vars")
-	}
-
-	endpoint := "./sessions.db"
-	tableName := "sessions"
-	path := "/"
-	maxAge := 3600
-	keyPairs := []byte(secretKey)
-	store, err := sqlitestore.NewSqliteStore(endpoint, tableName, path, maxAge, keyPairs)
+	store, err := sessionstore.GetSessionStore()
 	if err != nil {
 		logger.Error("Could not connect to session store")
-
-		debugMsg := fmt.Sprintf("sqlitestore.NewSqliteStore returned %v", err)
-		logger.Debug(debugMsg)
+		logger.Debug(err.Error())
 		return
 	}
-
-	sessionOptions := &sessions.Options{
-		Path:     "/",
-		MaxAge:   60 * 15,
-		HttpOnly: true,
-	}
-
-	if environment == "prod" {
-		sessionOptions.Secure = true
-	}
-
-	store.Options = sessionOptions
 
 	templateGlobPath := "./web/templates/**/*.html"
-	tmpl, err := template.ParseGlob(templateGlobPath)
-	if err != nil {
-		logger.Error("Could not parse templates")
+	tmpl := template.Must(template.ParseGlob(templateGlobPath))
 
-		debugMsg := fmt.Sprintf("template.ParseGlob returned %v", err)
-		logger.Debug(debugMsg)
+	defaultExpiration := 5 * time.Minute
+	cleanupInterval := 10 * time.Minute
 
-		return
-	}
-
-	c := goCache.New(5*time.Minute, 10*time.Minute)
-
-	userCache := cache.NewUserCache(c, logger)
-	todoCache := cache.NewTodoCache(c, logger)
+	userCache := cache.NewUserCache(defaultExpiration, cleanupInterval, logger)
+	todoCache := cache.NewTodoCache(defaultExpiration, cleanupInterval, logger)
 
 	caches := &cache.Caches{
 		UserCache: userCache,
@@ -127,8 +76,6 @@ func main() {
 	renderer := renderer.NewRenderer(tmpl, logger)
 	handler := handlers.NewHandler(service, store, renderer, logger)
 
-	fs := http.FileServer(http.Dir("assets"))
-
 	r := routes.Router(handler)
 
 	port := os.Getenv("PORT")
@@ -139,5 +86,4 @@ func main() {
 
 	logger.Info("Server started. Listening on http://localhost:" + port)
 	logger.Error(http.ListenAndServe(":"+port, r).Error())
-	//log.Fatal(http.ListenAndServeTLS(":3000", "localhost.crt", "localhost.key", r))
 }

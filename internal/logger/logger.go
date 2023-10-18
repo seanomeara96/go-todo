@@ -1,6 +1,10 @@
 package logger
 
-import "log"
+import (
+	"io/fs"
+	"log"
+	"os"
+)
 
 type LogLevel int
 
@@ -17,6 +21,18 @@ type Logger struct {
 
 func NewLogger(level LogLevel) *Logger {
 	return &Logger{level}
+}
+
+func SetOutputToFile() (*os.File, error) {
+	fileName := "app.log"
+	flag := os.O_APPEND | os.O_CREATE | os.O_WRONLY
+	fileMode := fs.FileMode(0644)
+	logFile, err := os.OpenFile(fileName, flag, fileMode)
+	if err != nil {
+		return nil, err
+	}
+	log.SetOutput(logFile)
+	return logFile, nil
 }
 
 func (l *Logger) Debug(message string) {

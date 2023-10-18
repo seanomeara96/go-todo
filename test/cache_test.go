@@ -1,19 +1,16 @@
 package test
 
 import (
-	"go-todo/cache"
-	"go-todo/logger"
-	"go-todo/models"
+	"go-todo/internal/cache"
+	"go-todo/internal/logger"
+	"go-todo/internal/models"
 	"testing"
 	"time"
-
-	goCache "github.com/patrickmn/go-cache"
 )
 
 func initCache() *cache.UserCache {
-	c := goCache.New(5*time.Minute, 10*time.Minute)
 	logger := logger.NewLogger(0)
-	return cache.NewUserCache(c, logger)
+	return cache.NewUserCache(5*time.Minute, 10*time.Minute, logger)
 }
 
 func TestCacheUser(t *testing.T) {

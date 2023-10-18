@@ -1,19 +1,20 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	"go-todo/models"
+	"go-todo/internal/db"
+	"go-todo/internal/models"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
 
-	db, err := sql.Open("sqlite3", "../../../main.db")
+	db, err := db.Connect()
 	if err != nil {
 		panic(err)
 	}
+	defer db.Close()
 
 	rows, err := db.Query("SELECT id, user_id, description, is_complete FROM todos WHERE user_id NOT IN (SELECT id FROM  users)")
 	if err != nil {
