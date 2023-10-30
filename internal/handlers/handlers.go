@@ -359,8 +359,15 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 
 	priceId := "price_1NlpMHJ6hGciURAFUvHsGcdM"
 
-	successUrl := "http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}"
-	canceledUrl := "http://localhost:3000/canceled"
+	domain := os.Getenv("DOMAIN")
+	if domain == "" {
+		h.logger.Error("Expected a domain set in ENV vars")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	successUrl := domain + "/success?session_id={CHECKOUT_SESSION_ID}"
+	canceledUrl := domain + "/canceled"
 	params := &stripe.CheckoutSessionParams{
 		CustomerEmail: stripe.String(user.Email),
 		SuccessURL:    &successUrl,
@@ -420,9 +427,19 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 
 	stripe.Key = stripeKey
 
+	domain := os.Getenv("DOMAIN")
+	if domain == "" {
+		h.logger.Error("Expected a domain in env vars")
+
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		// do something
+
+		return
+	}
+
 	params := &stripe.BillingPortalSessionParams{
 		Customer:  stripe.String(user.StripeCustomerID),
-		ReturnURL: stripe.String("http://localhost:3000/"),
+		ReturnURL: stripe.String(domain),
 	}
 
 	s, err := billingportalsession.New(params)
