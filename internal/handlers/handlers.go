@@ -547,6 +547,8 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		if user == nil {
 			h.logger.Warning("Invoice paid webhook was called but the email address on the invoice did not return a user")
+			debugMsg := fmt.Sprintf("This customer email did not return a user: %s", invoice.Customer.Email)
+			h.logger.Debug(debugMsg)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -640,6 +642,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// customer.ID in this instances looks like a subscription id
 		if user == nil {
 			warningMsg := fmt.Sprintf("Customer subscription updated but No user by that stripe ID (%s)", customer.ID)
 			h.logger.Warning(warningMsg)
