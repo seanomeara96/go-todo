@@ -27,16 +27,22 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 		// You can choose to handle the error here or exit the program.
+		return
 	}
 
 	if os.Getenv("ENV") == "" || os.Getenv("PORT") == "" {
 		log.Fatal("Expected a PORT and ENV var")
+		return
 	}
 
 	var logLevel logger.LogLevel = 0
 	if os.Getenv("ENV") == "prod" {
 		logLevel = 1
-		logFile, _ := logger.SetOutputToFile()
+		logFile, err := logger.SetOutputToFile()
+		if err != nil {
+			log.Fatal("Could not set output file")
+			return
+		}
 		defer logFile.Close()
 	}
 
