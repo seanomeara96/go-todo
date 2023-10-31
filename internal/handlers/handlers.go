@@ -947,8 +947,8 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO this is duplicate code
-	list, err := h.service.GetUserTodoList(user.ID)
+	// why render the whole page? just send back an empty string
+	/* list, err := h.service.GetUserTodoList(user.ID)
 	if err != nil {
 		http.Error(w, "something went wrong while fetching todos", http.StatusInternalServerError)
 		return
@@ -965,9 +965,9 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "could not render todo", http.StatusInternalServerError)
 		return
-	}
+	}*/
 
-	w.Write(todoListBytes)
+	w.Write([]byte(""))
 
 	infoMsg := fmt.Sprintf("User (%s) removed todo (%s)", user.ID, todoIDString)
 	h.logger.Info(infoMsg)
