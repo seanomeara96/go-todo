@@ -59,17 +59,21 @@ func (h *Handler) getUserFromSession(s *sessions.Session, err error) (*models.Us
 	return user, nil
 }
 
-func noCacheRedirect(w http.ResponseWriter, r *http.Request) {
+func noCacheRedirect(path string, w http.ResponseWriter, r *http.Request) {
 	// Set cache-control headers to prevent caching
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 
 	// Redirect the user to a new URL
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, path, http.StatusSeeOther)
 }
 
 // POST /login
+/*
+	Redirects to homepage when login is success. If there are client
+	errors then the homepage will be rerendered with error messages
+*/
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	session, err := h.store.Get(r, USER_SESSION)
 	user, err := h.getUserFromSession(session, err)
@@ -80,21 +84,29 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if user != nil {
 		// user already logged in
-		noCacheRedirect(w, r)
+		noCacheRedirect("/", w, r)
 		return
 	}
 
+	/*
+		no need to call logout if user == nil
+		as we'll just render the login form instead.
+	*/
+
 	err = r.ParseForm()
 	if err != nil {
+		h.logger.Error("Could not parse login form")
+		h.logger.Debug(err.Error())
 		http.Error(w, "Could not parse form", http.StatusInternalServerError)
 		return
 	}
 
-	email := r.FormValue("email")
-	password := r.FormValue("password")
+	email, password := r.FormValue("email"), r.FormValue("password")
 
 	user, userErrors, err := h.service.Login(email, password)
 	if err != nil {
+		h.logger.Error("Could not log in user")
+		h.logger.Debug(err.Error())
 		http.Error(w, "error logging user in", http.StatusInternalServerError)
 		return
 	}
@@ -110,12 +122,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Write(bytes)
+		_, err = w.Write(bytes)
 
-		user, _ := h.service.GetUserByEmail(email)
-		if user != nil {
-			infoMsg := fmt.Sprintf("User (%s) attempted login but failed", user.ID)
-			h.logger.Info(infoMsg)
+		if err != nil {
+			h.logger.Error("Could not write homepage")
+			h.logger.Debug(err.Error())
+			http.Error(w, "could not write homepage", http.StatusInternalServerError)
 		}
 
 		return
@@ -123,7 +135,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	session.Values["user"] = user.ID
 	session.Save(r, w)
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	noCacheRedirect("/", w, r)
 
 	infoMsg := fmt.Sprintf("Session created for user (%s) logged in", user.ID)
 	h.logger.Info(infoMsg)
@@ -145,7 +157,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	noCacheRedirect("/", w, r)
 
 	infoMsg := fmt.Sprintf("Session deleted for user (%s)", user.ID)
 	h.logger.Info(infoMsg)
@@ -160,15 +172,24 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	canCreateNewTodo := false
 	var list []*models.Todo
+
 	if user != nil {
+		/*
+			if user is logged in we need to get their todos
+			and whether they have permission to create a new todo
+		*/
 		list, err = h.service.GetUserTodoList(user.ID)
 		if err != nil {
-			http.Error(w, "could not get users list of todos", http.StatusInternalServerError)
+			h.logger.Error("Could not get user list of todos")
+			h.logger.Debug(err.Error())
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
 		canCreateNewTodo, err = h.service.UserCanCreateNewTodo(user, list)
 		if err != nil {
+			h.logger.Error("Cannot determine whether user can create new todo")
+			h.logger.Debug(err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -179,14 +200,22 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	noErrors := []string{}
 	loginFormProps := renderer.NewLoginFormProps(noErrors, noErrors)
 	homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps, loginFormProps)
+
 	bytes, err := h.render.HomePage(homePageProps)
 	if err != nil {
-		log.Print(err)
+		h.logger.Error("could not render home-logged-out")
+		h.logger.Debug(err.Error())
 		http.Error(w, "could not render home-logged-out", http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(bytes)
+	_, err = w.Write(bytes)
+	if err != nil {
+		h.logger.Error("could not write homepage")
+		h.logger.Debug(err.Error())
+		http.Error(w, "could not write home-logged-out", http.StatusInternalServerError)
+		return
+	}
 
 	if user != nil {
 		infoMsg := fmt.Sprintf("User (%s) loaded their todo list", user.ID)
@@ -202,7 +231,7 @@ func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user != nil {
-		noCacheRedirect(w, r)
+		noCacheRedirect("/", w, r)
 		return
 	}
 
@@ -212,20 +241,32 @@ func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
 	signupPageProps := renderer.NewSignupPageProps(basePageProps, signupFormProps)
 	signupPageBytes, err := h.render.Signup(signupPageProps)
 	if err != nil {
+		h.logger.Error("could not render signup page")
+		h.logger.Debug(err.Error())
 		http.Error(w, "could not render sigup page", http.StatusInternalServerError)
 		return
 	}
-	w.Write(signupPageBytes)
+
+	_, err = w.Write(signupPageBytes)
+	if err != nil {
+		h.logger.Error("Could not write signup page")
+		h.logger.Debug(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
+		h.logger.Error("Could not get user from session in upgrade handler")
+		h.logger.Debug(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if user == nil {
-		noCacheRedirect(w, r)
+		h.Logout(w, r)
 		return
 	}
 
@@ -233,11 +274,19 @@ func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) {
 	upgradePageProps := renderer.NewUpgradePageProps(basePageProps)
 	upgradePageBytes, err := h.render.Upgrade(upgradePageProps)
 	if err != nil {
+		h.logger.Error("Could not render upgrade page")
+		h.logger.Debug(err.Error())
 		http.Error(w, "could not render upgrade page", http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(upgradePageBytes)
+	_, err = w.Write(upgradePageBytes)
+	if err != nil {
+		h.logger.Error("could not write upgrade page")
+		h.logger.Debug(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	infoMsg := fmt.Sprintf("User (%s) started upgrade flow", user.ID)
 	h.logger.Info(infoMsg)
@@ -270,7 +319,10 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 
 	s, err := checkoutsession.Get(checkoutSessionID, nil)
 	if err != nil {
-		h.logger.Error("Could get checkout session from stripe")
+		errMsg := "Could get checkout session from stripe"
+		h.logger.Error(errMsg)
+		http.Error(w, errMsg, http.StatusInternalServerError)
+		return
 	}
 	// handle error ?
 
@@ -306,7 +358,13 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(bytes)
+	_, err = w.Write(bytes)
+	if err != nil {
+		h.logger.Error("Could not write success page")
+		h.logger.Debug(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) CancelPage(w http.ResponseWriter, r *http.Request) {
@@ -326,11 +384,19 @@ func (h *Handler) CancelPage(w http.ResponseWriter, r *http.Request) {
 	cancelPageProps := renderer.NewCancelPageProps(basePageProps)
 	bytes, err := h.render.Cancel(cancelPageProps)
 	if err != nil {
+		h.logger.Error("Cannot render cancel page")
+		h.logger.Debug(err.Error())
 		http.Error(w, "Cant render the cancel page at the moment. Please reach out to support so we can resolve this issue.", http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(bytes)
+	_, err = w.Write(bytes)
+	if err != nil {
+		h.logger.Error("Could not write cancel page")
+		h.logger.Debug(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	infoMsg := fmt.Sprintf("User (%s) has started cancellation flow", user.ID)
 	h.logger.Info(infoMsg)
@@ -401,6 +467,8 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Request) {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
+		h.logger.Error("Could not get user from session on create customer portal session hanlder")
+		h.logger.Debug(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -413,6 +481,8 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 
 	user, err = h.service.GetUserByID(user.ID)
 	if err != nil {
+		h.logger.Error("Could not get user by id in createcustomerportalsession handler")
+		h.logger.Debug(err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -430,10 +500,8 @@ func (h *Handler) CreateCustomerPortalSession(w http.ResponseWriter, r *http.Req
 	domain := os.Getenv("DOMAIN")
 	if domain == "" {
 		h.logger.Error("Expected a domain in env vars")
-
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		// do something
-
 		return
 	}
 
@@ -473,7 +541,8 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.logger.Error("Bad request from stripe")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.logger.Debug(err.Error())
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -849,7 +918,7 @@ func (h *Handler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	/*
-			The minimum event types to monitor:
+		The minimum event types to monitor:
 		Event name	Description
 		checkout.session.completed	Sent when a customer clicks the Pay or Subscribe button in Checkout, informing you of a new purchase.
 		invoice.paid	Sent each billing interval when a payment succeeds.
@@ -870,7 +939,7 @@ func (h *Handler) AddTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user == nil {
-		http.Error(w, "Usermust be logged in", http.StatusForbidden)
+		h.Logout(w, r)
 		return
 	}
 
@@ -949,26 +1018,6 @@ func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, clientError.Message, clientError.Code)
 		return
 	}
-
-	// why render the whole page? just send back an empty string
-	/* list, err := h.service.GetUserTodoList(user.ID)
-	if err != nil {
-		http.Error(w, "something went wrong while fetching todos", http.StatusInternalServerError)
-		return
-	}
-
-	userCanCreateNewTodo, err := h.service.UserCanCreateNewTodo(user, list)
-	if err != nil {
-		http.Error(w, "error determining user payment status", http.StatusInternalServerError)
-		return
-	}
-
-	props := renderer.NewTodoListProps(list, userCanCreateNewTodo)
-	todoListBytes, err := h.render.TodoList(props)
-	if err != nil {
-		http.Error(w, "could not render todo", http.StatusInternalServerError)
-		return
-	}*/
 
 	w.Write([]byte(""))
 
