@@ -11,7 +11,7 @@ require (
 	github.com/michaeljs1990/sqlitestore v0.0.0-20210507162135-8585425bc864
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/stripe/stripe-go/v75 v75.11.0
-	golang.org/x/crypto v0.14.0
+	golang.org/x/crypto v0.17.0
 )
 
 require (
