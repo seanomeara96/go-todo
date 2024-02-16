@@ -1,15 +1,12 @@
-package main
+package cli
 
 import (
 	"fmt"
 	"go-todo/internal/db"
 	"go-todo/internal/models"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
-func main() {
-
+func App() {
 	db, err := db.Connect()
 	if err != nil {
 		panic(err)

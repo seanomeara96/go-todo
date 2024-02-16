@@ -1,15 +1,14 @@
-package main
+package server
 
 import (
-	"go-todo/internal/cache"
 	"go-todo/internal/db"
-	"go-todo/internal/handlers"
-	"go-todo/internal/logger"
-	"go-todo/internal/renderer"
-	"go-todo/internal/repositories"
-	"go-todo/internal/services"
-	"go-todo/web/routes"
-	"go-todo/web/sessionstore"
+	"go-todo/internal/server/cache"
+	"go-todo/internal/server/logger"
+	"go-todo/internal/server/renderer"
+	"go-todo/internal/server/repositories"
+	"go-todo/internal/server/services"
+	"go-todo/internal/server/sessionstore"
+	"go-todo/web/delivery/http/handlers"
 	"html/template"
 	"log"
 	"net/http"
@@ -20,7 +19,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func main() {
+func Serve() {
 
 	// Load environment variables from .env file
 	err := godotenv.Load()
