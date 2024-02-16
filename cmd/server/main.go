@@ -1,7 +1,7 @@
 package main
 
-import "go-todo/internal/app"
+import "go-todo/internal/server"
 
 func main() {
-	app.Serve()
+	server.Serve()
 }
