@@ -1,21 +1,16 @@
 package sessionstore
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/gorilla/sessions"
 	"github.com/michaeljs1990/sqlitestore"
 )
 
-func GetSessionStore() (*sqlitestore.SqliteStore, error) {
+func GetSessionStore(secure bool) (*sqlitestore.SqliteStore, error) {
 	secretKey := os.Getenv("SECRET_KEY")
-	env := os.Getenv("ENV")
-	if secretKey == "" || env == "" {
-		return nil, fmt.Errorf("missing env vars")
-	}
 
-	endpoint := "./sessions.db"
+	endpoint := "./data/sqlite/sessions.db"
 	tableName := "sessions"
 	path := "/"
 	maxAge := 3600
@@ -29,9 +24,8 @@ func GetSessionStore() (*sqlitestore.SqliteStore, error) {
 		MaxAge:   maxAge,
 		HttpOnly: true,
 	}
-	if env == "prod" {
-		sessionOptions.Secure = true
-	}
+	sessionOptions.Secure = secure
+
 	store.Options = sessionOptions
 	return store, nil
 }

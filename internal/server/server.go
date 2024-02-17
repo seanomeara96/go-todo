@@ -38,7 +38,8 @@ func Serve(env, port string) error {
 	}
 	defer db.Close()
 
-	store, err := sessionstore.GetSessionStore()
+	useSecureSession := env == "prod"
+	store, err := sessionstore.GetSessionStore(useSecureSession)
 	if err != nil {
 		return err
 	}
