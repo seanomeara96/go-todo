@@ -2,10 +2,10 @@ package services
 
 import (
 	"fmt"
-	"go-todo/internal/cache"
-	"go-todo/internal/logger"
 	"go-todo/internal/models"
 	"go-todo/internal/repositories"
+	"go-todo/internal/server/cache"
+	"go-todo/internal/server/logger"
 	"html"
 	"net/http"
 	"regexp"

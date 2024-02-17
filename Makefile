@@ -20,7 +20,7 @@ clean:
 	rm -f $(BIN_DIR)/$(BINARY_NAME)
 
 run:
-	$(GORUN) cmd/main/main.go
+	$(GORUN) ./cmd/server
 
 .PHONY: all build clean run
 

@@ -3,9 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"go-todo/internal/logger"
 	"go-todo/internal/models"
-	"go-todo/internal/renderer"
+	"go-todo/internal/server/logger"
+	"go-todo/internal/server/renderer"
 	"go-todo/internal/services"
 	"io"
 	"log"

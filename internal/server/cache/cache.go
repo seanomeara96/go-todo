@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"go-todo/internal/logger"
 	"go-todo/internal/models"
+	"go-todo/internal/server/logger"
 	"time"
 
 	"github.com/patrickmn/go-cache"

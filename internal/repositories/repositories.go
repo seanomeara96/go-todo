@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"database/sql"
-	"go-todo/internal/logger"
+	"go-todo/internal/server/logger"
 )
 
 type Repository struct {
