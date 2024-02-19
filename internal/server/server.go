@@ -2,9 +2,9 @@ package server
 
 import (
 	"go-todo/internal/db"
+	"go-todo/internal/logger"
 	"go-todo/internal/repositories"
 	"go-todo/internal/server/cache"
-	"go-todo/internal/server/logger"
 	"go-todo/internal/server/renderer"
 	"go-todo/internal/server/sessionstore"
 	"go-todo/internal/services"

@@ -3,8 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"go-todo/internal/logger"
 	"go-todo/internal/models"
-	"go-todo/internal/server/logger"
 	"go-todo/internal/server/renderer"
 	"go-todo/internal/services"
 	"io"
@@ -193,6 +193,7 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
+
 	}
 
 	basePageProps := renderer.NewBasePageProps(user)

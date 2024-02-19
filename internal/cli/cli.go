@@ -1,47 +1,50 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
-	"go-todo/internal/db"
-	"go-todo/internal/models"
+	"go-todo/internal/services"
 )
 
-func App() {
-	db, err := db.Connect()
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
+type cli struct {
+	s *services.Service
+}
 
-	rows, err := db.Query("SELECT id, user_id, description, is_complete FROM todos WHERE user_id NOT IN (SELECT id FROM  users)")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
+func New(s *services.Service) *cli {
+	return &cli{s}
+}
 
-	var todos []models.Todo
-	for rows.Next() {
-		todo := models.Todo{}
-		err := rows.Scan(&todo.ID, &todo.UserID, &todo.Description, &todo.IsComplete)
-		if err != nil {
-			panic(err)
-		}
-		todos = append(todos, todo)
-	}
+func (cli *cli) Execute() error {
 
-	fmt.Printf("Found %d todos that can be deleted\n", len(todos))
+	resource := flag.String("resource", "", "todo, user")
+	action := flag.String("action", "", "tidy,...")
 
-	stmt, err := db.Prepare("DELETE FROM todos WHERE id = ?")
-	if err != nil {
-		panic(err)
-	}
-	defer stmt.Close()
+	flag.Parse()
 
-	for _, todo := range todos {
-		_, err := stmt.Exec(todo.ID)
-		if err != nil {
-			panic(err)
-		}
+	switch *resource {
+	case "users":
+		return cli.UserActions(*action)
+	case "todos":
+		return cli.TodoActions(*action)
+	default:
+		return fmt.Errorf("need to supply a valid resource")
 	}
 
+}
+
+func (cli *cli) UserActions(action string) error {
+	switch action {
+
+	default:
+		return fmt.Errorf("Please supply a valid user action")
+	}
+}
+
+func (cli *cli) TodoActions(action string) error {
+	switch action {
+	case "clean":
+		return cli.s.DeleteUnattributedTodos()
+	default:
+		return fmt.Errorf("Please supply a valid todo action")
+	}
 }

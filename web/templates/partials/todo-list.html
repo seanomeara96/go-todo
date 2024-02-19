@@ -1,7 +1,7 @@
 {{define "todo-list"}}
 <div id="todo-list">
   {{ if .CanCreateNewTodo }}
-    <form
+  <form
       hx-post="/todo/add"
       hx-trigger="submit"
       hx-target="#todo-list"
@@ -9,12 +9,14 @@
       >
       <input type="text" name="description" autofocus />
       <input class="ui button" type="submit" value="Submit" />
-    </form>
+  </form>
+    {{ else }}
+    <div>Youve reached your limit</div>
+    {{ end }}
+
+
     <div id="todos" class="ui divided items">
       {{ range .Todos }} {{ template "todo" .}} {{ end }}
     </div>
-  {{ else }}
-    <div>Youve reached your limit</div>
-  {{ end }}
 </div>
 {{end}}

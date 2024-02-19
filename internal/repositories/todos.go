@@ -141,3 +141,11 @@ func (r *Repository) DeleteAllTodosByUserIDAndStatus(userID string, IsComplete b
 	}
 	return nil
 }
+
+func (r *Repository) DeleteUnattributedTodos() error {
+	_, err := r.db.Exec("DELETE FROM todos WHERE user_id NOT IN (SELECT id FROM  users)")
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -2,8 +2,8 @@ package renderer
 
 import (
 	"bytes"
+	"go-todo/internal/logger"
 	"go-todo/internal/models"
-	"go-todo/internal/server/logger"
 	"html/template"
 )
 
