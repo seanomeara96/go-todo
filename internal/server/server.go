@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"go-todo/internal/db"
 	"go-todo/internal/logger"
 	"go-todo/internal/repositories"
@@ -15,33 +16,39 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func Serve(env, port string) error {
+type Server struct {
+	router *mux.Router
+	logger *logger.Logger
+}
 
-	var logLevel logger.LogLevel = 0
-	if os.Getenv("ENV") == "prod" {
-		logLevel = 1
-		logFile, err := logger.SetOutputToFile()
-		if err != nil {
-			return err
-		}
-		defer logFile.Close()
+func NewServer(router *mux.Router, logger *logger.Logger) *Server {
+	return &Server{router, logger}
+}
+
+func (s *Server) Serve(port string) error {
+	s.logger.Info("Server started. Listening on http://localhost:" + port)
+	if err := http.ListenAndServe(":"+port, s.router); err != nil {
+		return fmt.Errorf("Server failed to listen on %s. %w", port, err)
 	}
+	return nil
+}
 
-	logger := logger.NewLogger(logLevel)
+func DefaultServer(log *logger.Logger) *Server {
 
 	db, err := db.Connect()
 	if err != nil {
-		return err
+		panic(err)
 	}
 	defer db.Close()
 
-	useSecureSession := env == "prod"
+	useSecureSession := os.Getenv("env") == "prod"
 	store, err := sessionstore.GetSessionStore(useSecureSession)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	templateGlobPath := "./web/templates/**/*.html"
@@ -50,21 +57,16 @@ func Serve(env, port string) error {
 	defaultExpiration := 5 * time.Minute
 	cleanupInterval := 10 * time.Minute
 
-	userCache := cache.NewUserCache(defaultExpiration, cleanupInterval, logger)
-	todoCache := cache.NewTodoCache(defaultExpiration, cleanupInterval, logger)
+	userCache := cache.NewUserCache(defaultExpiration, cleanupInterval, log)
+	todoCache := cache.NewTodoCache(defaultExpiration, cleanupInterval, log)
 
-	caches := &cache.Caches{
-		UserCache: userCache,
-		TodoCache: todoCache,
-	}
+	caches := &cache.Caches{UserCache: userCache, TodoCache: todoCache}
 
-	repository := repositories.NewRepository(db, logger)
-	service := services.NewService(repository, caches, logger)
-	renderer := renderer.NewRenderer(tmpl, logger)
-	handler := handlers.NewHandler(service, store, renderer, logger)
+	repository := repositories.NewRepository(db, log)
+	service := services.NewService(repository, caches, log)
+	renderer := renderer.NewRenderer(tmpl, log)
+	handler := handlers.NewHandler(service, store, renderer, log)
 
 	r := router.NewRouter(handler)
-
-	logger.Info("Server started. Listening on http://localhost:" + port)
-	return http.ListenAndServe(":"+port, r)
+	return NewServer(r, log)
 }
