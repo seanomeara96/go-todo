@@ -52,7 +52,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if userErrors != nil {
 		loginFormProps := renderer.NewLoginFormProps(userErrors.EmailErrors, userErrors.PasswordErrors)
 		basePageProps := renderer.NewBasePageProps(nil)
-		todoListProps := renderer.NewTodoListProps([]*models.Todo{}, false)
+		todoListProps := renderer.NewTodoListProps([]*models.Todo{}, false, nil)
 		homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps, loginFormProps)
 		bytes, err := h.render.HomePage(homePageProps)
 		if err != nil {

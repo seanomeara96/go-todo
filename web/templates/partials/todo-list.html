@@ -10,6 +10,15 @@
       <input type="text" name="description" autofocus />
       <input class="ui button" type="submit" value="Submit" />
   </form>
+
+    {{ if .ClientErrors }}
+    <div class="ui negative message">
+      {{ range .ClientErrors.DescriptionErrors }}
+      <p>{{ . }}</p>
+      {{ end }}
+    </div>
+    {{ end }}
+
     {{ else }}
     <div>Youve reached your limit</div>
     {{ end }}

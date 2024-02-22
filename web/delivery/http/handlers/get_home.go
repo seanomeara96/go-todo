@@ -41,7 +41,7 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	basePageProps := renderer.NewBasePageProps(user)
-	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo)
+	todoListProps := renderer.NewTodoListProps(list, canCreateNewTodo, nil)
 	noErrors := []string{}
 	loginFormProps := renderer.NewLoginFormProps(noErrors, noErrors)
 	homePageProps := renderer.NewHomePageProps(basePageProps, todoListProps, loginFormProps)

@@ -7,12 +7,8 @@ import (
 	"net/http"
 )
 
-type createTodoClientErrors struct {
-	DescriptionErrors []string
-}
-
-func (s *Service) CreateTodo(userID, description string) (*models.Todo, *createTodoClientErrors, error) {
-	clientErrors := createTodoClientErrors{}
+func (s *Service) CreateTodo(userID, description string) (*models.Todo, *models.CreateTodoClientErrors, error) {
+	clientErrors := models.CreateTodoClientErrors{}
 	if description == "" {
 		clientErrors.DescriptionErrors = append(clientErrors.DescriptionErrors, "cannot supply an empty description")
 	}
@@ -48,7 +44,7 @@ func (s *Service) GetUserTodoList(userID string) ([]*models.Todo, error) {
 
 	// Redundant?
 	if user == nil {
-		return nil, fmt.Errorf("Could not get user by id. %w")
+		return nil, fmt.Errorf("Could not get user by id.")
 	}
 
 	limit := DefaultLimit

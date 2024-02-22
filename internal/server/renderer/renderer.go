@@ -160,12 +160,14 @@ func (r *Renderer) Todo(p TodoProps) ([]byte, error) {
 type TodoListProps struct {
 	Todos            []*models.Todo
 	CanCreateNewTodo bool
+	ClientErrors     *models.CreateTodoClientErrors
 }
 
-func NewTodoListProps(todoList []*models.Todo, canCreateNewTodo bool) TodoListProps {
+func NewTodoListProps(todoList []*models.Todo, canCreateNewTodo bool, clientErrors *models.CreateTodoClientErrors) TodoListProps {
 	return TodoListProps{
 		Todos:            todoList,
 		CanCreateNewTodo: canCreateNewTodo,
+		ClientErrors:     clientErrors,
 	}
 }
 func (r *Renderer) TodoList(p TodoListProps) ([]byte, error) {
