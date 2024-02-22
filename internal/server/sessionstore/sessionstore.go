@@ -1,6 +1,7 @@
 package sessionstore
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gorilla/sessions"
