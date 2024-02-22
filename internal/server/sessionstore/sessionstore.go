@@ -17,7 +17,7 @@ func GetSessionStore(secure bool) (*sqlitestore.SqliteStore, error) {
 	keyPairs := []byte(secretKey)
 	store, err := sqlitestore.NewSqliteStore(endpoint, tableName, path, maxAge, keyPairs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error generating new sqlite store. %w", err)
 	}
 	sessionOptions := &sessions.Options{
 		Path:     path,
