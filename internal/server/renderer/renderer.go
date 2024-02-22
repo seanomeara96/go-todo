@@ -2,20 +2,18 @@ package renderer
 
 import (
 	"bytes"
-	"go-todo/internal/logger"
+	"fmt"
 	"go-todo/internal/models"
 	"html/template"
 )
 
 type Renderer struct {
-	tmpl   *template.Template
-	logger *logger.Logger
+	tmpl *template.Template
 }
 
-func NewRenderer(tmpl *template.Template, logger *logger.Logger) *Renderer {
+func NewRenderer(tmpl *template.Template) *Renderer {
 	return &Renderer{
-		tmpl:   tmpl,
-		logger: logger,
+		tmpl: tmpl,
 	}
 }
 
@@ -23,8 +21,7 @@ func (r *Renderer) render(templateName string, data any) ([]byte, error) {
 	var buffer bytes.Buffer
 	err := r.tmpl.ExecuteTemplate(&buffer, templateName, data)
 	if err != nil {
-		r.logger.Debug(err.Error())
-		return nil, err
+		return nil, fmt.Errorf("Could not execute template %s to buffer. %w", templateName, err)
 	}
 	return buffer.Bytes(), nil
 }
@@ -58,9 +55,9 @@ func NewHomePageProps(basePageProps BasePageProps, todoListProps TodoListProps, 
 func (r *Renderer) HomePage(p HomePageProps) ([]byte, error) {
 	bytes, err := r.render("home", p)
 	if err != nil {
-		r.logger.Error("Could not render Homepage")
+		return []byte{}, fmt.Errorf("Could not render Homepage. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 /*
@@ -80,9 +77,9 @@ func NewSignupPageProps(basePageProps BasePageProps, signupFormProps SignupFormP
 func (r *Renderer) Signup(p SignupPageProps) ([]byte, error) {
 	bytes, err := r.render("signup", p)
 	if err != nil {
-		r.logger.Error("Could not render signup page")
+		return []byte{}, fmt.Errorf("Could not render signup page. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 /*
@@ -100,9 +97,9 @@ func NewUpgradePageProps(basePageProps BasePageProps) UpgradePageProps {
 func (r *Renderer) Upgrade(p UpgradePageProps) ([]byte, error) {
 	bytes, err := r.render("upgrade", p)
 	if err != nil {
-		r.logger.Error("Could not render upgrade page.")
+		return []byte{}, fmt.Errorf("Could not render upgrade page. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 /*
@@ -120,9 +117,9 @@ func NewSuccessPageProps(basePageProps BasePageProps) SuccessPageProps {
 func (r *Renderer) Success(p SuccessPageProps) ([]byte, error) {
 	bytes, err := r.render("success", p)
 	if err != nil {
-		r.logger.Error("Could not render success page")
+		return []byte{}, fmt.Errorf("Could not render success page. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 /*
@@ -140,9 +137,9 @@ func NewCancelPageProps(basePageProps BasePageProps) CancelPageProps {
 func (r *Renderer) Cancel(p CancelPageProps) ([]byte, error) {
 	bytes, err := r.render("cancel", p)
 	if err != nil {
-		r.logger.Error("Could not render cancel page")
+		return []byte{}, fmt.Errorf("Could not render cancel page. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 // partials
@@ -155,9 +152,9 @@ func NewTodoProps(todo *models.Todo) TodoProps {
 func (r *Renderer) Todo(p TodoProps) ([]byte, error) {
 	bytes, err := r.render("todo", p)
 	if err != nil {
-		r.logger.Error("Could not render todo element")
+		return []byte{}, fmt.Errorf("Could not render todo element. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 type TodoListProps struct {
@@ -174,9 +171,9 @@ func NewTodoListProps(todoList []*models.Todo, canCreateNewTodo bool) TodoListPr
 func (r *Renderer) TodoList(p TodoListProps) ([]byte, error) {
 	bytes, err := r.render("todo-list", p)
 	if err != nil {
-		r.logger.Error("Could not render todo list element")
+		return []byte{}, fmt.Errorf("Could not render todo list element. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 type LoginFormProps struct {
@@ -193,9 +190,9 @@ func NewLoginFormProps(emailErrors, passwordErrors []string) LoginFormProps {
 func (r *Renderer) LoginForm(p LoginFormProps) ([]byte, error) {
 	bytes, err := r.render("login-form", p)
 	if err != nil {
-		r.logger.Error("Could not render login form element")
+		return []byte{}, fmt.Errorf("Could not render login form element. %w", err)
 	}
-	return bytes, err
+	return bytes, nil
 }
 
 type SignupFormProps struct {
