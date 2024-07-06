@@ -1,6 +1,7 @@
 package sessionstore
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -10,8 +11,11 @@ import (
 
 func GetSessionStore(secure bool) (*sqlitestore.SqliteStore, error) {
 	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		return nil, errors.New("env var SECRET_KEY is blank.")
+	}
 
-	endpoint := "./data/sqlite/sessions.db"
+	endpoint := "data/sqlite/sessions.db"
 	tableName := "sessions"
 	path := "/"
 	maxAge := 3600

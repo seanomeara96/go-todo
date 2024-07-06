@@ -1,7 +1,7 @@
 package router
 
 import (
-	"go-todo/web/delivery/http/handlers"
+	"go-todo/internal/handlers"
 	"net/http"
 
 	"github.com/gorilla/mux"

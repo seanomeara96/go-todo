@@ -2,15 +2,15 @@ package main
 
 import (
 	"go-todo/internal/db"
+	"go-todo/internal/handlers"
 	"go-todo/internal/logger"
 	"go-todo/internal/repositories"
+	"go-todo/internal/router"
 	"go-todo/internal/server"
 	"go-todo/internal/server/cache"
 	"go-todo/internal/server/renderer"
 	"go-todo/internal/server/sessionstore"
 	"go-todo/internal/services"
-	"go-todo/web/delivery/http/handlers"
-	"go-todo/web/delivery/http/router"
 	"html/template"
 	"log"
 	"os"
@@ -21,7 +21,7 @@ import (
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load("./configs/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 		// You can choose to handle the error here or exit the program.
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	var logLevel logger.LogLevel = 0
-	if os.Getenv("env") == "prod" {
+	if os.Getenv("ENV") == "prod" {
 		logLevel = 1
 		logFile, err := logger.SetOutputToFile()
 		if err != nil {
@@ -49,7 +49,7 @@ func main() {
 	}
 	defer db.Close()
 
-	useSecureSession := os.Getenv("env") == "prod"
+	useSecureSession := os.Getenv("ENV") == "prod"
 	store, err := sessionstore.GetSessionStore(useSecureSession)
 	if err != nil {
 		panic(err)

@@ -5,7 +5,6 @@ import (
 	"go-todo/internal/db"
 	"go-todo/internal/repositories"
 	"go-todo/internal/server/cache"
-	"go-todo/internal/server/logger"
 	"go-todo/internal/services"
 	"log"
 	"time"
@@ -27,20 +26,18 @@ func main() {
 	}
 	defer db.Close()
 
-	logger := logger.NewLogger(0)
-
 	defaultExpiration := 5 * time.Minute
 	cleanupInterval := 10 * time.Minute
 
-	userCache := cache.NewUserCache(defaultExpiration, cleanupInterval, logger)
-	todoCache := cache.NewTodoCache(defaultExpiration, cleanupInterval, logger)
+	userCache := cache.NewUserCache(defaultExpiration, cleanupInterval)
+	todoCache := cache.NewTodoCache(defaultExpiration, cleanupInterval)
 
 	caches := &cache.Caches{
 		UserCache: userCache,
 		TodoCache: todoCache,
 	}
 
-	command := cli.New(services.NewService(repositories.NewRepository(db, logger), caches, logger))
+	command := cli.New(services.NewService(repositories.NewRepository(db), caches))
 	err = command.Execute()
 	if err != nil {
 		log.Fatal(err)
