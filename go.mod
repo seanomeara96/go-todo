@@ -17,5 +17,4 @@ require (
 require (
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
-	golang.org/x/net v0.21.0 // indirect
 )
