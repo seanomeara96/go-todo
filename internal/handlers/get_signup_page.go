@@ -1,16 +1,13 @@
 package handlers
 
 import (
+	"go-todo/internal/models"
 	"go-todo/internal/server/renderer"
 	"net/http"
 )
 
 func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) error {
-	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
-	if err != nil {
-		return err
-	}
-
+	user, _ := r.Context().Value(userIDKey).(*models.User)
 	if user != nil {
 		return noCacheRedirect("/", w, r)
 	}

@@ -68,7 +68,7 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) error {
 
 	_, err = w.Write(bytes)
 	if err != nil {
-		return fmt.Errorf("Could not write success page")
+		return fmt.Errorf("could not write success page")
 	}
 	return nil
 }

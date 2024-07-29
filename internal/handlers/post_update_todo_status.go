@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
 func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) error {
-	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
+	user, err := h.getUserFromContext(r)
 	if err != nil {
 		return err
 	}
@@ -23,9 +21,7 @@ func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	vars := mux.Vars(r)
-	idParam := vars["id"]
-	todoID, err := strconv.Atoi(idParam)
+	todoID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		return fmt.Errorf("path does not contain valid id %d", http.StatusBadRequest)
 	}
@@ -40,7 +36,7 @@ func (h *Handler) UpdateTodoStatus(w http.ResponseWriter, r *http.Request) error
 	}
 
 	if todo == nil {
-		return fmt.Errorf("service did not return a todo item", http.StatusInternalServerError)
+		return fmt.Errorf("service did not return a todo item")
 	}
 
 	todoBytes, err := h.render.Todo(todo)

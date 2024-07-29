@@ -13,22 +13,23 @@ import (
 	errors then the homepage will be rerendered with error messages
 */
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) error {
-	session, err := h.store.Get(r, USER_SESSION)
-	user, err := h.getUserFromSession(session, err)
-	if err != nil {
-		return err
+
+	user, ok := r.Context().Value(userIDKey).(*models.User)
+	if !ok {
+		return fmt.Errorf("could not convert to user pointer")
 	}
 
 	if user != nil {
+		fmt.Println("user already logged in", user)
 		// user already logged in
 		return noCacheRedirect("/", w, r)
 
 	}
 
-	/*
-		no need to call logout if user == nil
-		as we'll just render the login form instead.
-	*/
+	session, err := h.store.Get(r, USER_SESSION)
+	if err != nil {
+		return err
+	}
 
 	err = r.ParseForm()
 	if err != nil {
@@ -61,7 +62,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	session.Values["user"] = user.ID
-	session.Save(r, w)
+	err = session.Save(r, w)
+	if err != nil {
+		return err
+	}
 
 	infoMsg := fmt.Sprintf("Session created for user (%s) logged in", user.ID)
 	h.logger.Info(infoMsg)

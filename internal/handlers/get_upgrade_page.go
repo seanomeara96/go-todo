@@ -1,20 +1,18 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
+	"go-todo/internal/models"
 	"go-todo/internal/server/renderer"
 	"net/http"
 )
 
 func (h *Handler) UpgradePage(w http.ResponseWriter, r *http.Request) error {
 
-	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
-	if err != nil {
-		return fmt.Errorf("could not get user from session in upgrade handler")
-	}
-
-	if user == nil {
-		return h.Logout(w, r)
+	user, ok := r.Context().Value(userIDKey).(*models.User)
+	if !ok {
+		return errors.New("user not found")
 	}
 
 	defer func() {

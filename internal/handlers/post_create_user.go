@@ -38,10 +38,9 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
-
 	infoMsg := fmt.Sprintf("New user (%s) created", newUser.ID)
 	h.logger.Info(infoMsg)
 
-	return nil
+	return noCacheRedirect("/", w, r)
+
 }

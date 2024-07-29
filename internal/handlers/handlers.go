@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"go-todo/internal/logger"
 	"go-todo/internal/models"
 	"go-todo/internal/server/renderer"
@@ -56,6 +57,14 @@ func (h *Handler) getUserFromSession(s *sessions.Session, err error) (*models.Us
 	user, err := h.service.GetUserByID(userID)
 	if err != nil {
 		return nil, err
+	}
+	return user, nil
+}
+
+func (h *Handler) getUserFromContext(r *http.Request) (*models.User, error) {
+	user, ok := r.Context().Value(userIDKey).(*models.User)
+	if !ok {
+		return nil, fmt.Errorf("coul not get user pointer from contex")
 	}
 	return user, nil
 }
