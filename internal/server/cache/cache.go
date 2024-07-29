@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"go-todo/internal/logger"
 	"go-todo/internal/models"
 	"time"
 
@@ -9,15 +8,13 @@ import (
 )
 
 type UserCache struct {
-	cache  *cache.Cache
-	logger *logger.Logger
+	cache *cache.Cache
 }
 
-func NewUserCache(defaultExpiration time.Duration, cleanupInterval time.Duration, logger *logger.Logger) *UserCache {
+func NewUserCache(defaultExpiration time.Duration, cleanupInterval time.Duration) *UserCache {
 	c := cache.New(defaultExpiration, cleanupInterval)
 	return &UserCache{
-		cache:  c,
-		logger: logger,
+		cache: c,
 	}
 }
 
@@ -83,15 +80,13 @@ func (c *UserCache) GetUserByStripeID(userStripeID string) *models.User {
 }
 
 type TodoCache struct {
-	cache  *cache.Cache
-	logger *logger.Logger
+	cache *cache.Cache
 }
 
-func NewTodoCache(defaultExpiration time.Duration, cleanupInterval time.Duration, logger *logger.Logger) *TodoCache {
+func NewTodoCache(defaultExpiration time.Duration, cleanupInterval time.Duration) *TodoCache {
 	c := cache.New(defaultExpiration, cleanupInterval)
 	return &TodoCache{
-		cache:  c,
-		logger: logger,
+		cache: c,
 	}
 }
 

@@ -1,9 +1,13 @@
 package db
 
-import "database/sql"
+import (
+	"database/sql"
+
+	_ "github.com/mattn/go-sqlite3"
+)
 
 func Connect() (*sql.DB, error) {
 	driverName := "sqlite3"
-	dataSourceName := "main.db"
+	dataSourceName := "data/sqlite/main.db"
 	return sql.Open(driverName, dataSourceName)
 }

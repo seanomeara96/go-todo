@@ -1,6 +1,7 @@
 package sessionstore
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -8,30 +9,28 @@ import (
 	"github.com/michaeljs1990/sqlitestore"
 )
 
-func GetSessionStore() (*sqlitestore.SqliteStore, error) {
+func GetSessionStore(secure bool) (*sqlitestore.SqliteStore, error) {
 	secretKey := os.Getenv("SECRET_KEY")
-	env := os.Getenv("ENV")
-	if secretKey == "" || env == "" {
-		return nil, fmt.Errorf("missing env vars")
+	if secretKey == "" {
+		return nil, errors.New("env var SECRET_KEY is blank.")
 	}
 
-	endpoint := "./sessions.db"
+	endpoint := "data/sqlite/sessions.db"
 	tableName := "sessions"
 	path := "/"
 	maxAge := 3600
 	keyPairs := []byte(secretKey)
 	store, err := sqlitestore.NewSqliteStore(endpoint, tableName, path, maxAge, keyPairs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error generating new sqlite store. %w", err)
 	}
 	sessionOptions := &sessions.Options{
 		Path:     path,
 		MaxAge:   maxAge,
 		HttpOnly: true,
 	}
-	if env == "prod" {
-		sessionOptions.Secure = true
-	}
+	sessionOptions.Secure = secure
+
 	store.Options = sessionOptions
 	return store, nil
 }
