@@ -4,55 +4,47 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
-func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RemoveTodo(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if user == nil {
-		h.Logout(w, r)
-		return
+		return h.Logout(w, r)
 	}
 
-	vars := mux.Vars(r)
-	todoIDString := vars["id"]
-
-	todoID, err := strconv.Atoi(todoIDString)
+	todoID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "path does not contain valid id", http.StatusBadRequest)
-		return
+		return err
 	}
 
 	todo, clientError, internalError := h.service.GetTodoByID(todoID, user.ID)
 	if internalError != nil {
-		http.Error(w, "could not get todo", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if clientError != nil {
-		http.Error(w, clientError.Message, clientError.Code)
-		return
+		return fmt.Errorf("client err", clientError.Message)
 	}
 
 	clientError, internalError = h.service.DeleteTodo(todo.ID, user.ID)
 	if internalError != nil {
-		http.Error(w, "could not remove todo", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if clientError != nil {
-		http.Error(w, clientError.Message, clientError.Code)
-		return
+		return fmt.Errorf("%s:%d", clientError.Message, clientError.Code)
 	}
 
-	w.Write([]byte(""))
+	if _, err := w.Write([]byte("")); err != nil {
+		return err
+	}
 
-	infoMsg := fmt.Sprintf("User (%s) removed todo (%s)", user.ID, todoIDString)
+	infoMsg := fmt.Sprintf("User (%s) removed todo (%s)", user.ID, r.PathValue("id"))
 	h.logger.Info(infoMsg)
+
+	return nil
 }

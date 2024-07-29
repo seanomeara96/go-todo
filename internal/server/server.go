@@ -5,16 +5,15 @@ import (
 	"go-todo/internal/logger"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Server struct {
-	router *mux.Router
+	router *http.ServeMux
 	logger *logger.Logger
 }
 
-func NewServer(router *mux.Router, logger *logger.Logger) *Server {
+func NewServer(router *http.ServeMux, logger *logger.Logger) *Server {
 	return &Server{router, logger}
 }
 

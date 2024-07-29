@@ -8,6 +8,6 @@ import (
 
 func Connect() (*sql.DB, error) {
 	driverName := "sqlite3"
-	dataSourceName := "data/sqlite/main.db"
+	dataSourceName := "data/main.db"
 	return sql.Open(driverName, dataSourceName)
 }

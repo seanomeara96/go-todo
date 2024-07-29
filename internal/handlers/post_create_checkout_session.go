@@ -9,23 +9,22 @@ import (
 	checkoutsession "github.com/stripe/stripe-go/v75/checkout/session"
 )
 
-func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+
+		return err
 	}
 
 	if user == nil {
-		h.Logout(w, r)
-		return
+		return h.Logout(w, r)
+
 	}
 
 	stripeKey := os.Getenv(STRIPE_API_KEY)
 	if stripeKey == "" {
-		http.Error(w, "no stripe api key", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("no stripe key")
 	}
 
 	stripe.Key = stripeKey
@@ -34,9 +33,7 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 
 	domain := os.Getenv("DOMAIN")
 	if domain == "" {
-		h.logger.Error("Expected a domain set in ENV vars")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("no domain key")
 	}
 
 	successUrl := domain + "/success?session_id={CHECKOUT_SESSION_ID}"
@@ -57,16 +54,12 @@ func (h *Handler) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) 
 
 	s, err := checkoutsession.New(params)
 	if err != nil {
-		errMsg := fmt.Sprintf("Could not generate new checkout session for user (%s)", user.ID)
-		h.logger.Error(errMsg)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("Could not generate new checkout session for user (%s)", user.ID)
 	}
 	// handle error?
 
-	// Then redirect to the URL on the Checkout Session
-	http.Redirect(w, r, s.URL, http.StatusSeeOther)
-
 	infoMsg := fmt.Sprintf("User (%s) initiated checkout", user.ID)
 	h.logger.Info(infoMsg)
+
+	return noCacheRedirect(s.URL, w, r)
 }

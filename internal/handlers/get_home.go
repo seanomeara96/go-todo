@@ -7,11 +7,10 @@ import (
 	"net/http"
 )
 
-func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	canCreateNewTodo := false
@@ -24,18 +23,12 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 		*/
 		list, err = h.service.GetUserTodoList(user.ID)
 		if err != nil {
-			h.logger.Error("Could not get user list of todos")
-			h.logger.Debug(err.Error())
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("could not get user list of todos, %w", err)
 		}
 
 		canCreateNewTodo, err = h.service.UserCanCreateNewTodo(user, list)
 		if err != nil {
-			h.logger.Error("Cannot determine whether user can create new todo")
-			h.logger.Debug(err.Error())
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("cannot determine whether user can create new todo, %w", err)
 		}
 
 	}
@@ -48,22 +41,17 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	bytes, err := h.render.HomePage(homePageProps)
 	if err != nil {
-		h.logger.Error("could not render home-logged-out")
-		h.logger.Debug(err.Error())
-		http.Error(w, "could not render home-logged-out", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	_, err = w.Write(bytes)
 	if err != nil {
-		h.logger.Error("could not write homepage")
-		h.logger.Debug(err.Error())
-		http.Error(w, "could not write home-logged-out", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if user != nil {
 		infoMsg := fmt.Sprintf("User (%s) loaded their todo list", user.ID)
 		h.logger.Info(infoMsg)
 	}
+	return nil
 }

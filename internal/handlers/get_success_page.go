@@ -11,16 +11,14 @@ import (
 	"github.com/stripe/stripe-go/v75"
 )
 
-func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if user == nil {
-		h.Logout(w, r)
-		return
+		return h.Logout(w, r)
 	}
 
 	checkoutSessionID := r.URL.Query().Get("session_id")
@@ -28,41 +26,33 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 	stripeKey := os.Getenv(STRIPE_API_KEY)
 
 	if stripeKey == "" {
-		errorMsg := fmt.Sprintf("Could not access key(%s) from ENV", STRIPE_API_KEY)
-		h.logger.Error(errorMsg)
-		http.Error(w, "Trouble connecting with payment provider. Please try again later.", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("could not access key(%s) from ENV", STRIPE_API_KEY)
 	}
 
 	stripe.Key = stripeKey
 
 	s, err := checkoutsession.Get(checkoutSessionID, nil)
 	if err != nil {
-		errMsg := "Could get checkout session from stripe"
-		h.logger.Error(errMsg)
-		http.Error(w, errMsg, http.StatusInternalServerError)
-		return
+		errMsg := "could get checkout session from stripe"
+		return fmt.Errorf(errMsg)
 	}
 	// handle error ?
 
 	// get user from db
 	user, err = h.service.GetUserByEmail(s.CustomerEmail)
 	if err != nil {
-		http.Error(w, "could not find user", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	err = h.service.AddStripeIDToUser(user.ID, s.Customer.ID)
 	if err != nil {
-		http.Error(w, "could not add customer details to user", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if s.PaymentStatus == "paid" {
 		err = h.service.UpdateUserPaymentStatus(user.ID, true)
 		if err != nil {
-			http.Error(w, "could not update user payment status", http.StatusInternalServerError)
-			return
+			return err
 		}
 
 		infoMsg := fmt.Sprintf("User (%s) became a premium user", user.ID)
@@ -73,15 +63,12 @@ func (h *Handler) SuccessPage(w http.ResponseWriter, r *http.Request) {
 	successPageProps := renderer.NewSuccessPageProps(basePageProps)
 	bytes, err := h.render.Success(successPageProps)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	_, err = w.Write(bytes)
 	if err != nil {
-		h.logger.Error("Could not write success page")
-		h.logger.Debug(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("Could not write success page")
 	}
+	return nil
 }

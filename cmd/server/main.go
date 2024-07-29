@@ -36,7 +36,7 @@ func main() {
 		logLevel = 1
 		logFile, err := logger.SetOutputToFile()
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		defer logFile.Close()
 	}
@@ -45,14 +45,14 @@ func main() {
 
 	db, err := db.Connect()
 	if err != nil {
-		panic(err)
+		log.Fatalf("could not connect to databse %v", err)
 	}
 	defer db.Close()
 
 	useSecureSession := os.Getenv("ENV") == "prod"
 	store, err := sessionstore.GetSessionStore(useSecureSession)
 	if err != nil {
-		panic(err)
+		log.Fatalf("could not connnect to session store %v", err)
 	}
 
 	templateGlobPath := "./web/templates/**/*.html"

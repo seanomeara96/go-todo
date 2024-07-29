@@ -5,16 +5,14 @@ import (
 	"net/http"
 )
 
-func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	if user != nil {
-		noCacheRedirect("/", w, r)
-		return
+		return noCacheRedirect("/", w, r)
 	}
 
 	basePageProps := renderer.NewBasePageProps(user)
@@ -23,17 +21,13 @@ func (h *Handler) SignupPage(w http.ResponseWriter, r *http.Request) {
 	signupPageProps := renderer.NewSignupPageProps(basePageProps, signupFormProps)
 	signupPageBytes, err := h.render.Signup(signupPageProps)
 	if err != nil {
-		h.logger.Error("could not render signup page")
-		h.logger.Debug(err.Error())
-		http.Error(w, "could not render sigup page", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	_, err = w.Write(signupPageBytes)
 	if err != nil {
-		h.logger.Error("Could not write signup page")
-		h.logger.Debug(err.Error())
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return err
 	}
+
+	return nil
 }

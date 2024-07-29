@@ -11,16 +11,29 @@ import (
 	"github.com/michaeljs1990/sqlitestore"
 )
 
-const STRIPE_API_KEY = "STRIPE_API_KEY"
-const USER_SESSION = "user-session"
-const STRIPE_WEBHOOK_SECRET = "STRIPE_WEBHOOK_SECRET"
-
 type Handler struct {
 	service *services.Service
 	store   *sqlitestore.SqliteStore
 	render  *renderer.Renderer
 	logger  *logger.Logger
 }
+
+type HandleFunc func(w http.ResponseWriter, r *http.Request) error
+type MiddleWareFunc func(next HandleFunc) HandleFunc
+
+func (fn HandleFunc) Use(middleware ...MiddleWareFunc) HandleFunc {
+
+	for i := range middleware {
+		fn = middleware[i](fn)
+	}
+
+	return fn
+
+}
+
+const STRIPE_API_KEY = "STRIPE_API_KEY"
+const USER_SESSION = "user-session"
+const STRIPE_WEBHOOK_SECRET = "STRIPE_WEBHOOK_SECRET"
 
 func NewHandler(service *services.Service, store *sqlitestore.SqliteStore, renderer *renderer.Renderer, logger *logger.Logger) *Handler {
 	return &Handler{
@@ -47,7 +60,7 @@ func (h *Handler) getUserFromSession(s *sessions.Session, err error) (*models.Us
 	return user, nil
 }
 
-func noCacheRedirect(path string, w http.ResponseWriter, r *http.Request) {
+func noCacheRedirect(path string, w http.ResponseWriter, r *http.Request) error {
 	// Set cache-control headers to prevent caching
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
@@ -55,6 +68,7 @@ func noCacheRedirect(path string, w http.ResponseWriter, r *http.Request) {
 
 	// Redirect the user to a new URL
 	http.Redirect(w, r, path, http.StatusSeeOther)
+	return nil
 }
 
 // func (h *Handler) Upgrade(w http.ResponseWriter, r *http.Request) {

@@ -7,7 +7,7 @@ GOGET=$(GOCMD) get
 GORUN=$(GOCMD) run
 
 # Main binary name
-BINARY_NAME=server
+BINARY_NAME=server.exe
 BIN_DIR=bin
 
 all: build
@@ -19,8 +19,8 @@ clean:
 	$(GOCLEAN)
 	rm -f $(BIN_DIR)/$(BINARY_NAME)
 
-run:
-	$(GORUN) ./cmd/server
+run: build
+	./bin/${BINARY_NAME}
 
 .PHONY: all build clean run
 

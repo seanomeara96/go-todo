@@ -15,7 +15,7 @@ func GetSessionStore(secure bool) (*sqlitestore.SqliteStore, error) {
 		return nil, errors.New("env var SECRET_KEY is blank.")
 	}
 
-	endpoint := "data/sqlite/sessions.db"
+	endpoint := "data/sessions.db"
 	tableName := "sessions"
 	path := "/"
 	maxAge := 3600
