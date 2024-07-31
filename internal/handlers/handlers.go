@@ -22,16 +22,6 @@ type Handler struct {
 type HandleFunc func(w http.ResponseWriter, r *http.Request) error
 type MiddleWareFunc func(next HandleFunc) HandleFunc
 
-func (fn HandleFunc) Use(middleware ...MiddleWareFunc) HandleFunc {
-
-	for i := range middleware {
-		fn = middleware[i](fn)
-	}
-
-	return fn
-
-}
-
 const STRIPE_API_KEY = "STRIPE_API_KEY"
 const USER_SESSION = "user-session"
 const STRIPE_WEBHOOK_SECRET = "STRIPE_WEBHOOK_SECRET"
