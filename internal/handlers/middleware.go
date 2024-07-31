@@ -18,7 +18,7 @@ func (h *Handler) PathLogger(next HandleFunc) HandleFunc {
 	}
 }
 
-func (h *Handler) MustBeLoggedIn(next HandleFunc) HandleFunc {
+func (h *Handler) UserMustBeLoggedIn(next HandleFunc) HandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// do something
 
@@ -31,7 +31,7 @@ func (h *Handler) MustBeLoggedIn(next HandleFunc) HandleFunc {
 	}
 }
 
-func (h *Handler) UserFromSession(next HandleFunc) HandleFunc {
+func (h *Handler) AddUserToContext(next HandleFunc) HandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		user, err := h.getUserFromSession(h.store.Get(r, USER_SESSION))
 		if err != nil {

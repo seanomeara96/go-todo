@@ -7,9 +7,10 @@ import (
 
 func registerUserRoutes(handler *handlers.Handler, r *http.ServeMux) {
 	middleware := []handlers.MiddleWareFunc{
-		handler.UserFromSession,
+		handler.AddUserToContext,
 		handler.PathLogger,
 	}
+
 	handle := newHandleFunc(r, middleware)
 	method := newMethodFunc("", handle)
 	get := method(http.MethodGet)
@@ -18,8 +19,8 @@ func registerUserRoutes(handler *handlers.Handler, r *http.ServeMux) {
 	get("/signup", handler.SignupPage)
 	post("/signup", handler.CreateUser)
 	get("/success", handler.SuccessPage)
-	get("/cancel", handler.CancelPage)
-	get("/upgrade", handler.MustBeLoggedIn(handler.UpgradePage))
+	get("/subscription/cancel", handler.CancelPage)
+	get("/subscription/upgrade", handler.UserMustBeLoggedIn(handler.UpgradePage))
 
 	post("/login", handler.Login)
 	get("/logout", handler.Logout)
@@ -39,21 +40,25 @@ func registerUserRoutes(handler *handlers.Handler, r *http.ServeMux) {
 func registerAdminRoutes(handler *handlers.Handler, r *http.ServeMux) {
 	adminMiddleware := []handlers.MiddleWareFunc{
 		handler.PathLogger,
+		handler.UserMustBeAdmin,
+		handler.AddUserToContext,
+		handler.UserMustBeLoggedIn,
 	}
+
 	handle := newHandleFunc(r, adminMiddleware)
 	method := newMethodFunc("/admin", handle)
 	get := method(http.MethodGet)
-	//adminPost := adminMethod(http.MethodPost)
+	put := method(http.MethodPut)
+	delete := method(http.MethodDelete)
 
-	get("/hello", func(w http.ResponseWriter, r *http.Request) error {
-		w.Write([]byte("hello!"))
-		return nil
-	})
+	get("/dashboard", handler.AdminDashboard)
+	get("/analytics", handler.AnalyticsDashboard)
 
-	get("/manage", func(w http.ResponseWriter, r *http.Request) error {
-		w.Write([]byte("manage!"))
-		return nil
-	})
+	get("/users", handler.AdminUsersPage)
+	get("/users/{user_id}", handler.AdminUserProfilePage)
+	put("/users/{user_id}", handler.UpdateUser)
+	delete("/users/{user_id}", handler.DeleteUser)
+
 }
 
 func newHandleFunc(r *http.ServeMux, middleware []handlers.MiddleWareFunc) func(path string, fn handlers.HandleFunc) {
