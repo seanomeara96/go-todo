@@ -39,10 +39,10 @@ func registerUserRoutes(handler *handlers.Handler, r *http.ServeMux) {
 
 func registerAdminRoutes(handler *handlers.Handler, r *http.ServeMux) {
 	adminMiddleware := []handlers.MiddleWareFunc{
-		handler.PathLogger,
 		handler.UserMustBeAdmin,
 		handler.AddUserToContext,
 		handler.UserMustBeLoggedIn,
+		handler.PathLogger,
 	}
 
 	handle := newHandleFunc(r, adminMiddleware)
@@ -64,6 +64,7 @@ func registerAdminRoutes(handler *handlers.Handler, r *http.ServeMux) {
 func newHandleFunc(r *http.ServeMux, middleware []handlers.MiddleWareFunc) func(path string, fn handlers.HandleFunc) {
 	return func(path string, fn handlers.HandleFunc) {
 
+		// wrap fn in middleware
 		for i := range middleware {
 			fn = middleware[i](fn)
 		}

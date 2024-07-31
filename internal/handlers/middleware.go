@@ -18,6 +18,18 @@ func (h *Handler) PathLogger(next HandleFunc) HandleFunc {
 	}
 }
 
+func (h *Handler) UserMustBeAdmin(next HandleFunc) HandleFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		user := r.Context().Value(userIDKey).(*models.User)
+
+		if _, ok := user.Roles["admin"]; !ok {
+			return fmt.Errorf("user must be admin")
+		}
+
+		return next(w, r)
+	}
+}
+
 func (h *Handler) UserMustBeLoggedIn(next HandleFunc) HandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// do something

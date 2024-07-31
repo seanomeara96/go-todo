@@ -21,6 +21,7 @@ type User struct {
 	Password         string
 	IsPaidUser       bool
 	StripeCustomerID string
+	Roles            map[string]string
 }
 
 func NewUser(ID string, name string, email string, password string, isPaidUser bool, stripeCustomerID string) User {
