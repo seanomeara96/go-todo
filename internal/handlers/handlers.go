@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"go-todo/internal/logger"
 	"go-todo/internal/models"
@@ -75,3 +76,15 @@ func noCacheRedirect(path string, w http.ResponseWriter, r *http.Request) error 
 // 	// stripe code
 
 // }
+
+func (h *Handler) AdminDashboard(w http.ResponseWriter, r *http.Request) error {
+	return errors.New("not implemented")
+}
+
+func (h *Handler) AnalyticsDashboard(w http.ResponseWriter, r *http.Request) error {
+	return errors.New("not implemented")
+}
+
+func (h *Handler) AdminUsersPage(w http.ResponseWriter, r *http.Request) error {
+	h.service.GetUsers()
+}
