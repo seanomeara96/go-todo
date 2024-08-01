@@ -85,6 +85,25 @@ func (h *Handler) AnalyticsDashboard(w http.ResponseWriter, r *http.Request) err
 	return errors.New("not implemented")
 }
 
-func (h *Handler) AdminUsersPage(w http.ResponseWriter, r *http.Request) error {
-	h.service.GetUsers()
+func (h *Handler) UsersPage(w http.ResponseWriter, r *http.Request) error {
+	// h.service.GetUsers()
+	return errors.New("not implemented")
+}
+
+func (h *Handler) UserProfilePage(w http.ResponseWriter, r *http.Request) error {
+	_, err := h.service.GetUserByID(r.PathValue("user_id"))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
+	// h.service.GetUsers()
+	return errors.New("not implemented")
+}
+
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
+	// h.service.GetUsers()
+	return errors.New("not implemented")
 }
