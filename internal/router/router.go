@@ -54,10 +54,14 @@ func registerAdminRoutes(handler *handlers.Handler, r *http.ServeMux) {
 	get("/dashboard", handler.AdminDashboard)
 	get("/analytics", handler.AnalyticsDashboard)
 
-	get("/users", handler.UsersPage)
-	get("/users/{user_id}", handler.UserProfilePage)
-	put("/users/{user_id}", handler.UpdateUser)
-	delete("/users/{user_id}", handler.DeleteUser)
+	users := func(slug string) string {
+		return "/users" + slug
+	}
+
+	get(users(""), handler.UsersPage)
+	get(users("/{user_id}"), handler.UserProfilePage)
+	put(users("/{user_id}"), handler.UpdateUser)
+	delete(users("/{user_id}"), handler.DeleteUser)
 
 }
 
